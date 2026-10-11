@@ -5,9 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.flotitan.playtracker"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,7 +17,9 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.flotitan.playtracker",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -26,7 +29,8 @@
       "expo-router",
       "expo-sqlite",
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      "expo-localization"
     ],
     "scheme": "playtracker",
     "backgroundColor": "#0A0A0B",

@@ -1,10 +1,10 @@
 import type { TimerPhase } from '@/lib/timer';
-import palette from '@/theme/palette';
+import type { Palette } from '@/theme/palette';
 
 interface PhaseStyle {
   label: string;
-  /** Raw color for icons and the progress fill. */
-  color: string;
+  /** Palette token for icons and the progress fill. */
+  color: keyof Palette;
   border: string;
   badge: string;
   badgeText: string;
@@ -13,35 +13,35 @@ interface PhaseStyle {
 export const phaseStyle: Record<TimerPhase, PhaseStyle> = {
   idle: {
     label: 'Idle',
-    color: palette.idle,
+    color: 'idle',
     border: 'border-line',
     badge: 'bg-elevated',
     badgeText: 'text-muted',
   },
   open: {
     label: 'Riding',
-    color: palette.neon,
-    border: 'border-neonDim',
+    color: 'neon',
+    border: 'border-neon/30',
     badge: 'bg-neonDim',
     badgeText: 'text-neon',
   },
   active: {
     label: 'Riding',
-    color: palette.neon,
-    border: 'border-neonDim',
+    color: 'neon',
+    border: 'border-neon/30',
     badge: 'bg-neonDim',
     badgeText: 'text-neon',
   },
   warning: {
     label: 'Ending soon',
-    color: palette.amber,
+    color: 'amber',
     border: 'border-amber/50',
     badge: 'bg-amberDim',
     badgeText: 'text-amber',
   },
   expired: {
     label: 'Overtime',
-    color: palette.danger,
+    color: 'danger',
     border: 'border-danger/60',
     badge: 'bg-dangerDim',
     badgeText: 'text-danger',

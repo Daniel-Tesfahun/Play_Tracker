@@ -1,6 +1,6 @@
-import type { Zone } from '@/db/types';
+import type { Player, Zone } from '@/db/types';
 
-import { applyIncrement, nextZoneName, summarizeZones, zoneShare } from '../gaming';
+import { applyIncrement, nextZoneName, playerShare, summarizeZones, zoneShare } from '../gaming';
 
 const zone = (id: number, gamesToday: number, name = `Zone ${id}`): Zone => ({
   id,
@@ -8,6 +8,23 @@ const zone = (id: number, gamesToday: number, name = `Zone ${id}`): Zone => ({
   currentGame: null,
   position: id,
   gamesToday,
+  players: [],
+  unassignedToday: gamesToday,
+});
+
+const player = (id: number, zoneId: number, gamesToday: number): Player => ({
+  id,
+  zoneId,
+  name: `P${id}`,
+  position: id,
+  gamesToday,
+});
+
+/** Zone 1 with Abel (10) on 3 games and Sami (11) on 1, plus 2 unassigned = 6 total. */
+const withPlayers = (): Zone => ({
+  ...zone(1, 6),
+  players: [player(10, 1, 3), player(11, 1, 1)],
+  unassignedToday: 2,
 });
 
 describe('applyIncrement', () => {
@@ -39,6 +56,54 @@ describe('applyIncrement', () => {
   it('ignores unknown zone ids', () => {
     const zones = [zone(1, 5)];
     expect(applyIncrement(zones, 99)).toEqual(zones);
+  });
+});
+
+describe('applyIncrement with players', () => {
+  it('credits the player and the zone total together', () => {
+    const [next] = applyIncrement([withPlayers()], 1, 1, 10);
+    expect(next?.gamesToday).toBe(7);
+    expect(next?.players.map((p) => p.gamesToday)).toEqual([4, 1]);
+    expect(next?.unassignedToday).toBe(2);
+  });
+
+  it('adds to unassigned when no player is given', () => {
+    const [next] = applyIncrement([withPlayers()], 1, 1);
+    expect(next?.gamesToday).toBe(7);
+    expect(next?.unassignedToday).toBe(3);
+    expect(next?.players.map((p) => p.gamesToday)).toEqual([3, 1]);
+  });
+
+  it("removes a player's game and never takes a player below zero", () => {
+    let zones = [withPlayers()];
+    zones = applyIncrement(zones, 1, -1, 11);
+    zones = applyIncrement(zones, 1, -1, 11);
+    expect(zones[0]?.players[1]?.gamesToday).toBe(0);
+    // Only one game was really removed, so the total only drops by one.
+    expect(zones[0]?.gamesToday).toBe(5);
+  });
+
+  it('keeps the zone total equal to players plus unassigned', () => {
+    let zones = [withPlayers()];
+    zones = applyIncrement(zones, 1, 1, 10);
+    zones = applyIncrement(zones, 1, 1, 11);
+    zones = applyIncrement(zones, 1, 1);
+    const z = zones[0]!;
+    const credited = z.players.reduce((sum, p) => sum + p.gamesToday, 0);
+    expect(z.gamesToday).toBe(credited + z.unassignedToday);
+  });
+
+  it('ignores a player that is not on the zone', () => {
+    const zones = [withPlayers()];
+    expect(applyIncrement(zones, 1, 1, 999)).toEqual(zones);
+  });
+});
+
+describe('playerShare', () => {
+  it("is the player's fraction of the zone's games", () => {
+    const z = withPlayers();
+    expect(playerShare(z.players[0]!, z)).toBe(0.5);
+    expect(playerShare(player(1, 1, 0), zone(1, 0))).toBe(0);
   });
 });
 

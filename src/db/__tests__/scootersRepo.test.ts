@@ -14,6 +14,8 @@ import {
   getScooterDayStats,
   listScooters,
   renameScooter,
+  resetScooter,
+  resetScootersDay,
   startSession,
   stopSession,
 } from '../scootersRepo';
@@ -117,5 +119,31 @@ describe('scooters repository', () => {
       sessionsToday: 2,
       minutesToday: 30,
     });
+  });
+
+  it('cancels a running ride without saving it', async () => {
+    await allocateMinutes(db, 1, 30);
+    await startSession(db, 1, T0);
+    await resetScooter(db, 1);
+
+    expect(await scooter(1)).toMatchObject({ startedAt: null, allocatedMinutes: 0 });
+    expect((await getScooterDayStats(db, dayKey(T0))).sessionsToday).toBe(0);
+  });
+
+  it("resets the day: cancels rides, clears bookings and today's history only", async () => {
+    const YESTERDAY = T0 - 24 * 60 * MIN;
+    await startSession(db, 1, YESTERDAY);
+    await stopSession(db, 1, YESTERDAY + 10 * MIN);
+    await startSession(db, 1, T0);
+    await stopSession(db, 1, T0 + 5 * MIN);
+    await startSession(db, 2, T0);
+    await allocateMinutes(db, 3, 60);
+
+    await resetScootersDay(db, T0);
+
+    const all = await listScooters(db);
+    expect(all.every((s) => s.startedAt === null && s.allocatedMinutes === 0)).toBe(true);
+    expect((await getScooterDayStats(db, dayKey(T0))).sessionsToday).toBe(0);
+    expect((await getScooterDayStats(db, dayKey(YESTERDAY))).sessionsToday).toBe(1);
   });
 });

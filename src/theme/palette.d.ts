@@ -1,4 +1,6 @@
-declare const palette: {
+export type ColorScheme = 'light' | 'dark';
+
+export interface Palette {
   readonly canvas: string;
   readonly surface: string;
   readonly elevated: string;
@@ -14,6 +16,10 @@ declare const palette: {
   readonly danger: string;
   readonly dangerDim: string;
   readonly idle: string;
-};
+}
 
-export = palette;
+export declare const themes: Record<ColorScheme, Palette>;
+export declare const tokens: (keyof Palette)[];
+export declare function hexToChannels(hex: string): string;
+export declare function cssVariables(scheme: ColorScheme): Record<`--color-${string}`, string>;
+export declare const tailwindColors: Record<keyof Palette, string>;

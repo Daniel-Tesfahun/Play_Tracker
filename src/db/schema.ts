@@ -1,23 +1,35 @@
 import type { Database } from './types';
 
 export const DATABASE_NAME = 'playtracker.db';
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DEFAULT_ZONE_COUNT = 6;
 export const DEFAULT_SCOOTER_COUNT = 4;
 
 /**
- * Creates tables on first launch and seeds a starter layout.
- * Uses PRAGMA user_version so future schema changes can be appended as steps.
+ * Brings the database up to SCHEMA_VERSION one step at a time, tracked with
+ * PRAGMA user_version, so existing installs upgrade without losing data.
  */
 export async function migrate(db: Database): Promise<void> {
   // foreign_keys is per-connection in SQLite, so it must be set on every open.
   await db.execAsync('PRAGMA foreign_keys = ON');
 
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-  const current = row?.user_version ?? 0;
-  if (current >= SCHEMA_VERSION) return;
+  let version = row?.user_version ?? 0;
 
+  if (version < 1) {
+    await createBaseSchema(db);
+    version = 1;
+  }
+  if (version < 2) {
+    await addPlayers(db);
+    version = 2;
+  }
+
+  await db.execAsync(`PRAGMA user_version = ${version}`);
+}
+
+async function createBaseSchema(db: Database): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
 
@@ -75,6 +87,21 @@ export async function migrate(db: Database): Promise<void> {
       );
     }
   });
+}
 
-  await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+/** v2: optional named players per zone; each play can be credited to one. */
+async function addPlayers(db: Database): Promise<void> {
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS zone_players (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      zone_id INTEGER NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_zone_players_zone ON zone_players(zone_id);
+
+    ALTER TABLE game_plays ADD COLUMN player_id INTEGER REFERENCES zone_players(id) ON DELETE SET NULL;
+    CREATE INDEX IF NOT EXISTS idx_game_plays_player ON game_plays(player_id);
+  `);
 }

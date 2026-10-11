@@ -41,21 +41,33 @@ export function useZones() {
     [reload],
   );
 
+  /** +1 on a zone, credited to a player when one is given. */
   const increment = useCallback(
-    (zoneId: number) => {
+    (zoneId: number, playerId: number | null = null) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setZones((prev) => applyIncrement(prev, zoneId, 1));
-      resyncOnError(repo.incrementZone(db, zoneId));
+      setZones((prev) => applyIncrement(prev, zoneId, 1, playerId));
+      resyncOnError(repo.incrementZone(db, zoneId, Date.now(), playerId));
     },
     [db, resyncOnError],
   );
 
-  const decrement = useCallback(
-    (zoneId: number) => {
-      setZones((prev) => applyIncrement(prev, zoneId, -1));
-      resyncOnError(repo.decrementZone(db, zoneId));
+  const decrementPlayer = useCallback(
+    (zoneId: number, playerId: number) => {
+      void Haptics.selectionAsync();
+      setZones((prev) => applyIncrement(prev, zoneId, -1, playerId));
+      resyncOnError(repo.decrementPlayer(db, playerId));
     },
     [db, resyncOnError],
+  );
+
+  // Zone-level undo removes whichever play was latest, so we can't predict the
+  // affected player; re-read instead of guessing.
+  const undoLast = useCallback(
+    (zoneId: number) => {
+      void Haptics.selectionAsync();
+      return mutate(() => repo.decrementZone(db, zoneId));
+    },
+    [db, mutate],
   );
 
   const titleBreakdown = useCallback((zoneId: number) => repo.zoneTitleBreakdown(db, zoneId), [db]);
@@ -64,12 +76,23 @@ export function useZones() {
     zones,
     loaded,
     increment,
-    decrement,
+    decrementPlayer,
+    undoLast,
     addZone: () => mutate(() => repo.addZone(db, nextZoneName(zones))),
     updateZone: (zoneId: number, details: { name: string; currentGame: string | null }) =>
       mutate(() => repo.updateZone(db, zoneId, details)),
-    resetToday: (zoneId: number) => mutate(() => repo.resetZoneToday(db, zoneId)),
+    resetToday: (zoneId: number) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return mutate(() => repo.resetZoneToday(db, zoneId));
+    },
+    resetAllToday: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return mutate(() => repo.resetAllZonesToday(db));
+    },
     deleteZone: (zoneId: number) => mutate(() => repo.deleteZone(db, zoneId)),
+    addPlayer: (zoneId: number, name: string) => mutate(() => repo.addPlayer(db, zoneId, name)),
+    renamePlayer: (playerId: number, name: string) => mutate(() => repo.renamePlayer(db, playerId, name)),
+    removePlayer: (playerId: number) => mutate(() => repo.removePlayer(db, playerId)),
     titleBreakdown,
   };
 }

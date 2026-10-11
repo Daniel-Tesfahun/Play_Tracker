@@ -36,9 +36,10 @@ The app is linked to the EAS project `flo-titan/playtracker` (`extra.eas.project
 
 ```bash
 npx eas-cli@latest login
-npx eas-cli@latest build:configure     # creates eas.json the first time
-npx eas-cli@latest build --platform android --profile preview
+npx eas-cli@latest build --platform android --profile preview   # installable .apk
 ```
+
+Profiles live in `eas.json`: `preview` builds an APK for direct install, `production` builds an AAB for the Play Store.
 
 ## Project structure
 
@@ -47,7 +48,7 @@ src/
   app/                    # Expo Router routes (screens only)
     _layout.tsx           # SQLiteProvider + migrations, root stack
     (tabs)/
-      _layout.tsx         # Bottom tab bar
+      _layout.tsx         # Tabs with the segmented switcher
       index.tsx           # Gaming Zones
       scooters.tsx        # Scooters
   components/
@@ -69,7 +70,11 @@ src/
 
 ## How it works
 
-**Gaming Zones**: each section is one PS + TV. Tapping a card logs a game (a row in `game_plays` tagged with the current title and the local day), so "today" counts reset at midnight on their own and history is kept. Long-press or the `…` button opens the editor: rename, set the game title, undo the last tap, reset today, or delete the section.
+**Navigation**: one segmented switch at the bottom flips between Gaming Zones and Scooters, with the selected side highlighted. Each screen header has a light/dark toggle; the choice is saved on the device.
+
+**Gaming Zones**: each section is one PS + TV. Tapping a card (or its `+1` button) logs a game (a row in `game_plays` tagged with the current title and the local day), so "today" counts reset at midnight on their own and history is kept. Each card has undo and reset right on it, and **Reset day** above the list clears every zone at once.
+
+Players are optional: add names to a zone and each one gets its own `−`/`+` counter. The zone total is the sum of all players plus any games not credited to a player. Removing a player keeps their games on the zone total. Long-press or `…` opens the editor: rename, game title, players, undo, reset, delete.
 
 **Scooters**: the `+15m / +30m / +60m` bubbles stack minutes, either before a ride (pre-booking) or during one (extending). Start stamps the current time. With minutes booked the timer counts down. With none it counts up. Card states:
 
@@ -80,7 +85,7 @@ src/
 | Ending soon | Last 5 min, or last 20% of short rides | Amber |
 | Overtime | Past the booked time | Red, shows `+M:SS` |
 
-Ending a ride saves it to `scooter_sessions` and feeds the daily ride count and billed minutes (rounded up to the next minute).
+Start and end times use the phone's own time zone and 12/24-hour setting. Ending a ride saves it to `scooter_sessions` and feeds the daily ride count and billed minutes (rounded up to the next minute). The reset button on a card cancels a ride without saving it, and **Reset day** cancels all rides and clears today's ride history.
 
 ## Web
 

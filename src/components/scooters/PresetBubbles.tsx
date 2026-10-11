@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { PRESET_MINUTES } from '@/lib/timer';
 import { formatMinutes } from '@/lib/time';
-import palette from '@/theme/palette';
+import { usePalette } from '@/theme/usePalette';
 
 interface PresetBubblesProps {
   scooterId: number;
@@ -22,6 +22,7 @@ export function PresetBubbles({
   onClear,
   canClear,
 }: PresetBubblesProps) {
+  const c = usePalette();
   return (
     <View className="flex-row items-center gap-2">
       {PRESET_MINUTES.map((m) => (
@@ -47,7 +48,7 @@ export function PresetBubbles({
           className="h-11 flex-row items-center gap-1 rounded-full px-3"
         >
           <Text className="text-xs font-semibold text-muted">{formatMinutes(allocatedMinutes)}</Text>
-          <Ionicons name="close-circle" size={16} color={palette.faint} />
+          <Ionicons name="close-circle" size={16} color={c.faint} />
         </PressableScale>
       ) : null}
     </View>

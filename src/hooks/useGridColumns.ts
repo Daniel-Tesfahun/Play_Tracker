@@ -1,9 +1,9 @@
 import { useWindowDimensions } from 'react-native';
 
-/** 2 columns on phones, 3 on small tablets / landscape, 4 on large tablets. */
+/** Full-width cards on phones, 2 columns on small tablets / landscape, 3 on large tablets. */
 export function useGridColumns(): number {
   const { width } = useWindowDimensions();
-  if (width >= 1000) return 4;
-  if (width >= 640) return 3;
-  return 2;
+  if (width >= 1000) return 3;
+  if (width >= 640) return 2;
+  return 1;
 }

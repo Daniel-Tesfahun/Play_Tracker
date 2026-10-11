@@ -1,4 +1,4 @@
-import type { Zone } from '@/db/types';
+import type { Player, Zone } from '@/db/types';
 
 export interface ZoneSummary {
   totalGames: number;
@@ -9,12 +9,39 @@ export interface ZoneSummary {
 
 /**
  * Returns a new list with one zone's count shifted by `delta`, never below zero.
+ * With a playerId the change is credited to that player; otherwise to "unassigned".
  * Used for optimistic UI so a tap feels instant while the write lands in SQLite.
  */
-export function applyIncrement(zones: readonly Zone[], zoneId: number, delta = 1): Zone[] {
-  return zones.map((zone) =>
-    zone.id === zoneId ? { ...zone, gamesToday: Math.max(0, zone.gamesToday + delta) } : zone,
-  );
+export function applyIncrement(
+  zones: readonly Zone[],
+  zoneId: number,
+  delta = 1,
+  playerId: number | null = null,
+): Zone[] {
+  return zones.map((zone) => {
+    if (zone.id !== zoneId) return zone;
+
+    if (playerId === null) {
+      const unassignedToday = Math.max(0, zone.unassignedToday + delta);
+      const applied = unassignedToday - zone.unassignedToday;
+      return { ...zone, unassignedToday, gamesToday: zone.gamesToday + applied };
+    }
+
+    const player = zone.players.find((p) => p.id === playerId);
+    if (!player) return zone;
+    const playerGames = Math.max(0, player.gamesToday + delta);
+    const applied = playerGames - player.gamesToday;
+    return {
+      ...zone,
+      gamesToday: zone.gamesToday + applied,
+      players: zone.players.map((p) => (p.id === playerId ? { ...p, gamesToday: playerGames } : p)),
+    };
+  });
+}
+
+/** Share of a zone's games a player accounts for, 0..1. */
+export function playerShare(player: Player, zone: Zone): number {
+  return zone.gamesToday === 0 ? 0 : player.gamesToday / zone.gamesToday;
 }
 
 export function summarizeZones(zones: readonly Zone[]): ZoneSummary {

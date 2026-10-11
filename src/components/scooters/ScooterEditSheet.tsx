@@ -4,7 +4,7 @@ import { Alert, TextInput } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Field, inputClassName, Sheet } from '@/components/ui/Sheet';
 import type { Scooter } from '@/db/types';
-import palette from '@/theme/palette';
+import { usePalette } from '@/theme/usePalette';
 
 interface ScooterEditSheetProps {
   scooter: Scooter | null;
@@ -24,6 +24,7 @@ function ScooterEditForm({
   onRename,
   onDelete,
 }: ScooterEditSheetProps & { scooter: Scooter }) {
+  const c = usePalette();
   const [name, setName] = useState(scooter.name);
   const running = scooter.startedAt !== null;
 
@@ -34,7 +35,7 @@ function ScooterEditForm({
           value={name}
           onChangeText={setName}
           placeholder="Scooter name"
-          placeholderTextColor={palette.faint}
+          placeholderTextColor={c.faint}
           className={inputClassName}
           maxLength={32}
         />

@@ -18,12 +18,24 @@ export interface Database {
   withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
+export interface Player {
+  id: number;
+  zoneId: number;
+  name: string;
+  position: number;
+  gamesToday: number;
+}
+
 export interface Zone {
   id: number;
   name: string;
   currentGame: string | null;
   position: number;
+  /** All games logged on the zone today, with or without a player. */
   gamesToday: number;
+  players: Player[];
+  /** Games today not credited to any player (zone +1, or a player who was removed). */
+  unassignedToday: number;
 }
 
 export interface Scooter {

@@ -50,6 +50,15 @@ export function useScooters() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       return mutate(() => repo.stopSession(db, id));
     },
+    /** Cancel without logging: clears the ride and any booked time. */
+    reset: (id: number) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return mutate(() => repo.resetScooter(db, id));
+    },
+    resetDay: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return mutate(() => repo.resetScootersDay(db));
+    },
     addScooter: () => mutate(() => repo.addScooter(db, `Scooter ${scooters.length + 1}`)),
     rename: (id: number, name: string) => mutate(() => repo.renameScooter(db, id, name)),
     remove: (id: number) => mutate(() => repo.deleteScooter(db, id)),
