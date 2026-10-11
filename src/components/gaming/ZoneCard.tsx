@@ -2,6 +2,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { memo } from 'react';
 import { Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+
+import { AnimatedBar } from '@/components/motion/AnimatedBar';
+import { AnimatedNumber } from '@/components/motion/AnimatedNumber';
+import { CollapseButton } from '@/components/motion/CollapseButton';
 
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -115,13 +120,11 @@ function ZoneCardBase({
 
           {collapsed ? (
             <>
-              <Text
+              <AnimatedNumber
                 testID={`zone-count-${zone.id}`}
+                value={zone.gamesToday}
                 className={`min-w-[36px] text-right text-3xl font-extrabold ${played ? 'text-ink' : 'text-faint'}`}
-                style={{ fontVariant: ['tabular-nums'] }}
-              >
-                {zone.gamesToday}
-              </Text>
+              />
               {plusButton('sm')}
             </>
           ) : (
@@ -134,8 +137,8 @@ function ZoneCardBase({
           )}
           {onToggleCollapse ? (
             <View className="-mr-2">
-              <IconButton
-                icon={collapsed ? 'chevron-down' : 'chevron-up'}
+              <CollapseButton
+                collapsed={collapsed}
                 label={collapsed ? `Expand ${zone.name}` : `Collapse ${zone.name}`}
                 onPress={() => onToggleCollapse(zone.id)}
                 testID={`zone-collapse-${zone.id}`}
@@ -148,13 +151,12 @@ function ZoneCardBase({
           <>
             <View className="mt-3 flex-row items-end">
               <View className="flex-1">
-                <Text
+                <AnimatedNumber
                   testID={`zone-count-${zone.id}`}
+                  value={zone.gamesToday}
                   className={`text-6xl font-extrabold ${played ? 'text-ink' : 'text-faint'}`}
-                  style={{ fontVariant: ['tabular-nums'] }}
-                >
-                  {zone.gamesToday}
-                </Text>
+                  containerStyle={{ alignSelf: 'flex-start' }}
+                />
                 <Text className="-mt-1 text-xs font-semibold uppercase tracking-wider text-faint">games today</Text>
               </View>
               <View className="flex-row items-center gap-2">
@@ -179,20 +181,27 @@ function ZoneCardBase({
             </View>
 
             <View className="mt-4 h-1.5 overflow-hidden rounded-full bg-elevated">
-              <View className="h-full rounded-full bg-brand" style={{ width: `${Math.round(share * 100)}%` }} />
+              <AnimatedBar percent={Math.round(share * 100)} color={c.brand} />
             </View>
 
             {hasPlayers ? (
               <View className="mt-3 border-t border-line pt-1">
                 {zone.players.map((player, i) => (
-                  <PlayerRow
+                  // Players fade in when added, out when removed, and the rest slide into place.
+                  <Animated.View
                     key={player.id}
-                    player={player}
-                    share={playerShare(player, zone)}
-                    color={playerColor(i)}
-                    onIncrement={() => onIncrement(zone.id, player.id)}
-                    onDecrement={() => onDecrementPlayer(zone.id, player.id)}
-                  />
+                    entering={FadeIn.duration(220)}
+                    exiting={FadeOut.duration(160)}
+                    layout={LinearTransition.duration(200)}
+                  >
+                    <PlayerRow
+                      player={player}
+                      share={playerShare(player, zone)}
+                      color={playerColor(i)}
+                      onIncrement={() => onIncrement(zone.id, player.id)}
+                      onDecrement={() => onDecrementPlayer(zone.id, player.id)}
+                    />
+                  </Animated.View>
                 ))}
                 {zone.unassignedToday > 0 ? (
                   <Text className="pt-1 text-xs font-medium text-faint">

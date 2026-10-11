@@ -1,3 +1,4 @@
+import { SwapIn } from '@/components/motion/SwapIn';
 import { useColorSchemeToggle } from '@/theme/themePreference';
 import { usePalette } from '@/theme/usePalette';
 
@@ -9,13 +10,15 @@ export function ThemeToggle() {
   const toLight = scheme === 'dark';
 
   return (
-    <IconButton
-      icon={toLight ? 'sunny-outline' : 'moon-outline'}
-      label={toLight ? 'Switch to light mode' : 'Switch to dark mode'}
-      variant="filled"
-      color={c.ink}
-      onPress={toggle}
-      testID="theme-toggle"
-    />
+    <SwapIn swapKey={scheme}>
+      <IconButton
+        icon={toLight ? 'sunny-outline' : 'moon-outline'}
+        label={toLight ? 'Switch to light mode' : 'Switch to dark mode'}
+        variant="filled"
+        color={c.ink}
+        onPress={toggle}
+        testID="theme-toggle"
+      />
+    </SwapIn>
   );
 }

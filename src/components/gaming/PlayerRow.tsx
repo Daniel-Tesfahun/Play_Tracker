@@ -2,6 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { memo } from 'react';
 import { Text, View } from 'react-native';
 
+import { AnimatedBar } from '@/components/motion/AnimatedBar';
+import { AnimatedNumber } from '@/components/motion/AnimatedNumber';
 import { PressableScale } from '@/components/ui/PressableScale';
 import type { Player } from '@/db/types';
 import { usePalette } from '@/theme/usePalette';
@@ -36,17 +38,15 @@ function PlayerRowBase({ player, share, color, onIncrement, onDecrement }: Playe
           <Text className="ml-2 text-xs font-medium text-faint">{pct}%</Text>
         </View>
         <View className="mt-1.5 h-2 overflow-hidden rounded-full bg-elevated">
-          <View className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+          <AnimatedBar percent={pct} color={color} />
         </View>
       </View>
 
-      <Text
+      <AnimatedNumber
         testID={`player-count-${player.id}`}
+        value={player.gamesToday}
         className="w-8 text-right text-xl font-extrabold text-ink"
-        style={{ fontVariant: ['tabular-nums'] }}
-      >
-        {player.gamesToday}
-      </Text>
+      />
 
       <PressableScale
         onPress={onDecrement}

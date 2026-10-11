@@ -3,6 +3,9 @@ import * as Haptics from 'expo-haptics';
 import { memo, useEffect, useRef } from 'react';
 import { Text, View } from 'react-native';
 
+import { CollapseButton } from '@/components/motion/CollapseButton';
+import { Pulse } from '@/components/motion/Pulse';
+import { SwapIn } from '@/components/motion/SwapIn';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -117,28 +120,31 @@ function ScooterCardBase({
           )}`
       : undefined;
 
-  const pauseButton = (size: 'md' | 'lg') =>
-    paused ? (
-      <IconButton
-        icon="play"
-        label={`Resume ride on ${scooter.name}`}
-        variant="filled"
-        size={size}
-        color={c.neon}
-        onPress={() => onResume(scooter.id)}
-        testID={`scooter-resume-${scooter.id}`}
-      />
-    ) : (
-      <IconButton
-        icon="pause"
-        label={`Pause ride on ${scooter.name}`}
-        variant="filled"
-        size={size}
-        color={c.ink}
-        onPress={() => onPause(scooter.id)}
-        testID={`scooter-pause-${scooter.id}`}
-      />
-    );
+  const pauseButton = (size: 'md' | 'lg') => (
+    <SwapIn swapKey={paused ? 'resume' : 'pause'}>
+      {paused ? (
+        <IconButton
+          icon="play"
+          label={`Resume ride on ${scooter.name}`}
+          variant="filled"
+          size={size}
+          color={c.neon}
+          onPress={() => onResume(scooter.id)}
+          testID={`scooter-resume-${scooter.id}`}
+        />
+      ) : (
+        <IconButton
+          icon="pause"
+          label={`Pause ride on ${scooter.name}`}
+          variant="filled"
+          size={size}
+          color={c.ink}
+          onPress={() => onPause(scooter.id)}
+          testID={`scooter-pause-${scooter.id}`}
+        />
+      )}
+    </SwapIn>
+  );
 
   const timeText = (
     <Text
@@ -158,10 +164,18 @@ function ScooterCardBase({
     </Text>
   );
 
+  const overtime = timer.phase === 'expired' && !paused;
+
   const badge = (
-    <View testID={`scooter-badge-${scooter.id}`} className={`self-start rounded-full px-2.5 py-1 ${style.badge}`}>
-      <Text className={`text-[10px] font-extrabold uppercase tracking-wider ${style.badgeText}`}>{style.label}</Text>
-    </View>
+    <SwapIn swapKey={style.label} style={{ alignSelf: 'flex-start' }}>
+      <Pulse active={overtime}>
+        <View testID={`scooter-badge-${scooter.id}`} className={`rounded-full px-2.5 py-1 ${style.badge}`}>
+          <Text className={`text-[10px] font-extrabold uppercase tracking-wider ${style.badgeText}`}>
+            {style.label}
+          </Text>
+        </View>
+      </Pulse>
+    </SwapIn>
   );
 
   return (
@@ -169,7 +183,9 @@ function ScooterCardBase({
       testID={`scooter-card-${scooter.id}`}
       className={`flex-1 overflow-hidden rounded-3xl border bg-surface ${style.border}`}
     >
-      <View className={`h-1 ${style.strip}`} />
+      <Pulse active={overtime}>
+        <View className={`h-1 ${style.strip}`} />
+      </Pulse>
 
       <View className={collapsed ? 'px-4 py-3' : 'p-4 pt-3'}>
         <View className="flex-row items-center gap-3">
@@ -228,8 +244,8 @@ function ScooterCardBase({
           )}
           {onToggleCollapse ? (
             <View className="-mr-2">
-              <IconButton
-                icon={collapsed ? 'chevron-down' : 'chevron-up'}
+              <CollapseButton
+                collapsed={collapsed}
                 label={collapsed ? `Expand ${scooter.name}` : `Collapse ${scooter.name}`}
                 onPress={() => onToggleCollapse(scooter.id)}
                 testID={`scooter-collapse-${scooter.id}`}

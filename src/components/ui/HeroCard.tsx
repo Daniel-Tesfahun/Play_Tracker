@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
+import { AnimatedNumber } from '@/components/motion/AnimatedNumber';
 import type { GradientStops } from '@/theme/palette';
 
 interface HeroCardProps {
@@ -26,9 +27,7 @@ export function HeroCard({ label, value, caption, colors, children, testID }: He
     >
       <Text className="text-xs font-bold uppercase tracking-widest text-white">{label}</Text>
       <View className="mt-1 flex-row items-end gap-2">
-        <Text className="text-6xl font-extrabold text-white" style={{ fontVariant: ['tabular-nums'] }}>
-          {value}
-        </Text>
+        <AnimatedNumber value={value} className="text-6xl font-extrabold text-white" />
         <Text className="mb-2.5 flex-1 text-sm font-semibold text-white" numberOfLines={1}>
           {caption}
         </Text>
@@ -44,14 +43,13 @@ export function HeroPill({ label, value }: { label: string; value: string }) {
       <Text className="text-[11px] font-bold uppercase tracking-wider text-white" numberOfLines={1}>
         {label}
       </Text>
-      <Text
+      <AnimatedNumber
+        value={value}
         className="mt-0.5 text-lg font-bold text-white"
-        style={{ fontVariant: ['tabular-nums'] }}
+        containerStyle={{ alignSelf: 'flex-start' }}
         numberOfLines={1}
         adjustsFontSizeToFit
-      >
-        {value}
-      </Text>
+      />
     </View>
   );
 }

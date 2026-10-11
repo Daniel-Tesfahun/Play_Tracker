@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
@@ -35,34 +36,37 @@ export function Sheet({ visible, title, onClose, children }: SheetProps) {
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      // The Modal only fades (the backdrop); the sheet itself springs up below.
+      animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent
       navigationBarTranslucent
     >
       <View className="flex-1 justify-end">
         <Pressable className="absolute inset-0 bg-black/60" onPress={onClose} accessibilityLabel="Close" />
-        <View
-          className="rounded-t-[28px] border border-b-0 border-line bg-surface px-5 pt-3"
-          style={{ paddingBottom: bottomPad, maxHeight }}
-          testID="sheet"
-        >
-          <View className="mb-2 h-1 w-10 self-center rounded-full bg-lineStrong" />
-          <View className="mb-3 flex-row items-center justify-between">
-            <Text className="flex-1 text-lg font-bold text-ink" numberOfLines={1}>
-              {title}
-            </Text>
-            <IconButton icon="close" label="Close" onPress={onClose} />
-          </View>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            style={{ flexGrow: 0 }}
+        <Animated.View entering={SlideInDown.springify().damping(20).stiffness(220)}>
+          <View
+            className="rounded-t-[28px] border border-b-0 border-line bg-surface px-5 pt-3"
+            style={{ paddingBottom: bottomPad, maxHeight }}
+            testID="sheet"
           >
-            {children}
-          </ScrollView>
-        </View>
+            <View className="mb-2 h-1 w-10 self-center rounded-full bg-lineStrong" />
+            <View className="mb-3 flex-row items-center justify-between">
+              <Text className="flex-1 text-lg font-bold text-ink" numberOfLines={1}>
+                {title}
+              </Text>
+              <IconButton icon="close" label="Close" onPress={onClose} />
+            </View>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              style={{ flexGrow: 0 }}
+            >
+              {children}
+            </ScrollView>
+          </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -82,5 +86,4 @@ export function Field({ label, children }: FieldProps) {
   );
 }
 
-export const inputClassName =
-  'h-12 rounded-2xl border border-line bg-elevated px-4 text-base font-medium text-ink';
+export const inputClassName = 'h-12 rounded-2xl border border-line bg-elevated px-4 text-base font-medium text-ink';

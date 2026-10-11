@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
 
+import { AnimatedBar } from '@/components/motion/AnimatedBar';
 import { MILESTONES } from '@/lib/timer';
 
 interface TimerProgressProps {
@@ -30,7 +31,8 @@ export function TimerProgress({ progress, color, milestonesReached, endLabel }: 
       </View>
 
       <View className="h-5 overflow-hidden rounded-full bg-elevated">
-        <View className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+        {/* Ticks once a second, so a 1s linear glide makes the bar move continuously. */}
+        <AnimatedBar percent={progress * 100} color={color} duration={1000} linear testID="timer-progress-fill" />
         {inner.map((m) => (
           <View key={m} className="absolute bottom-0 top-0 w-0.5 bg-surface/80" style={{ left: `${m * 100}%` }} />
         ))}

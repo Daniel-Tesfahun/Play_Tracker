@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text, View } from 'react-native';
 
+import { AnimatedNumber } from '@/components/motion/AnimatedNumber';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useGradients } from '@/theme/usePalette';
 
@@ -54,14 +55,13 @@ export function SectionCard({ section, stats, onOpen }: SectionCardProps) {
               <Text className="text-[11px] font-bold uppercase tracking-wider text-white" numberOfLines={1}>
                 {s.label}
               </Text>
-              <Text
+              <AnimatedNumber
+                value={s.value}
                 className="mt-0.5 text-xl font-extrabold text-white"
-                style={{ fontVariant: ['tabular-nums'] }}
+                containerStyle={{ alignSelf: 'flex-start' }}
                 numberOfLines={1}
                 adjustsFontSizeToFit
-              >
-                {s.value}
-              </Text>
+              />
             </View>
           ))}
         </View>
