@@ -28,6 +28,8 @@ interface ScooterCardProps {
   clock?: ClockPrefs;
   collapsed?: boolean;
   onToggleCollapse?: (id: number) => void;
+  /** Press and hold the header: enter select mode with this card selected. */
+  onLongPressSelect?: (id: number) => void;
   onAllocate: (id: number, minutes: number) => void;
   onClearAllocation: (id: number) => void;
   onStart: (id: number) => void;
@@ -62,6 +64,7 @@ function ScooterCardBase({
   clock = {},
   collapsed = false,
   onToggleCollapse,
+  onLongPressSelect,
   onAllocate,
   onClearAllocation,
   onStart,
@@ -175,19 +178,25 @@ function ScooterCardBase({
       </Pulse>
 
       <View className={collapsed ? 'px-4 py-3' : 'p-4 pt-3'}>
-        <View className="flex-row items-center gap-3">
-          <PressableScale
-            onPress={() => onToggleCollapse?.(scooter.id)}
-            onLongPress={() => onEdit(scooter)}
-            delayLongPress={350}
-            pressedScale={0.98}
-            accessibilityRole="button"
+        {/*
+          The whole header row toggles collapse on tap and starts selecting on press-and-hold;
+          buttons inside it keep their own presses. It's touch-only (accessible={false}) because
+          an accessible container would hide those buttons from screen readers, which instead
+          use the collapse button and the list's Select button.
+        */}
+        <PressableScale
+          onPress={() => onToggleCollapse?.(scooter.id)}
+          onLongPress={() => onLongPressSelect?.(scooter.id)}
+          delayLongPress={350}
+          pressedScale={0.99}
+          accessible={false}
+          testID={`scooter-header-${scooter.id}`}
+          className="flex-row items-center gap-3"
+        >
+          <View
+            accessible
             accessibilityLabel={`${scooter.name}, ${style.label}`}
-            accessibilityHint={`Tap to ${collapsed ? 'expand' : 'collapse'}. Long press to edit.`}
-            accessibilityState={{ expanded: !collapsed }}
-            testID={`scooter-header-${scooter.id}`}
-            containerStyle={{ flex: 1 }}
-            className="flex-row items-center gap-3"
+            className="flex-1 flex-row items-center gap-3"
           >
             <View
               className={`h-11 w-11 items-center justify-center rounded-2xl ${running ? style.badge : 'bg-scootDim'}`}
@@ -200,7 +209,7 @@ function ScooterCardBase({
               </Text>
               {badge}
             </View>
-          </PressableScale>
+          </View>
 
           {collapsed ? (
             <>
@@ -227,7 +236,12 @@ function ScooterCardBase({
               )}
             </>
           ) : (
-            <IconButton icon="ellipsis-horizontal" label={`Edit ${scooter.name}`} onPress={() => onEdit(scooter)} />
+            <IconButton
+              icon="ellipsis-horizontal"
+              label={`Edit ${scooter.name}`}
+              onPress={() => onEdit(scooter)}
+              testID={`scooter-edit-${scooter.id}`}
+            />
           )}
           {onToggleCollapse ? (
             <View className="-mr-2">
@@ -239,7 +253,7 @@ function ScooterCardBase({
               />
             </View>
           ) : null}
-        </View>
+        </PressableScale>
 
         {collapsed ? null : (
           <>

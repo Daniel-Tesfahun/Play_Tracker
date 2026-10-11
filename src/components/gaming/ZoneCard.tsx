@@ -23,6 +23,8 @@ interface ZoneCardProps {
   share: number;
   collapsed?: boolean;
   onToggleCollapse?: (zoneId: number) => void;
+  /** Press and hold the header: enter select mode with this card selected. */
+  onLongPressSelect?: (zoneId: number) => void;
   onIncrement: (zoneId: number, playerId?: number | null) => void;
   onDecrementPlayer: (zoneId: number, playerId: number) => void;
   onUndo: (zoneId: number) => void;
@@ -46,6 +48,7 @@ function ZoneCardBase({
   share,
   collapsed = false,
   onToggleCollapse,
+  onLongPressSelect,
   onIncrement,
   onDecrementPlayer,
   onUndo,
@@ -99,19 +102,25 @@ function ZoneCardBase({
       <View className={`h-1 ${played ? 'bg-brand' : 'bg-transparent'}`} />
 
       <View className={collapsed ? 'px-4 py-3' : 'p-4 pt-3'}>
-        <View className="flex-row items-center gap-3">
-          <PressableScale
-            onPress={() => onToggleCollapse?.(zone.id)}
-            onLongPress={() => onEdit(zone)}
-            delayLongPress={350}
-            pressedScale={0.98}
-            accessibilityRole="button"
+        {/*
+          The whole header row toggles collapse on tap and starts selecting on press-and-hold;
+          buttons inside it keep their own presses. It's touch-only (accessible={false}) because
+          an accessible container would hide those buttons from screen readers, which instead
+          use the collapse button and the list's Select button.
+        */}
+        <PressableScale
+          onPress={() => onToggleCollapse?.(zone.id)}
+          onLongPress={() => onLongPressSelect?.(zone.id)}
+          delayLongPress={350}
+          pressedScale={0.99}
+          accessible={false}
+          testID={`zone-header-${zone.id}`}
+          className="flex-row items-center gap-3"
+        >
+          <View
+            accessible
             accessibilityLabel={`${zone.name}, ${zone.gamesToday} games today`}
-            accessibilityHint={`Tap to ${collapsed ? 'expand' : 'collapse'}. Long press to edit.`}
-            accessibilityState={{ expanded: !collapsed }}
-            testID={`zone-header-${zone.id}`}
-            containerStyle={{ flex: 1 }}
-            className="flex-row items-center gap-3"
+            className="flex-1 flex-row items-center gap-3"
           >
             <View
               className={`h-11 w-11 items-center justify-center rounded-2xl ${played ? 'bg-brandDim' : 'bg-elevated'}`}
@@ -132,7 +141,7 @@ function ZoneCardBase({
                 </Text>
               </View>
             </View>
-          </PressableScale>
+          </View>
 
           {collapsed ? (
             <>
@@ -161,7 +170,7 @@ function ZoneCardBase({
               />
             </View>
           ) : null}
-        </View>
+        </PressableScale>
 
         {collapsed ? null : (
           <>

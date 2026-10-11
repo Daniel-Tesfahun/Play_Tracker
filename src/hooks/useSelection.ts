@@ -39,7 +39,8 @@ export function useSelection<T extends { id: number }>(items: readonly T[]) {
     isSelected: (id: number) => selection.ids.has(id),
     selected: selectedItems(selection, items),
     allSelected: items.length > 0 && items.every((i) => selection.ids.has(i.id)),
-    start: () => setSelection((s) => startSelecting(s)),
+    /** Enter select mode, optionally with one item already selected (press-and-hold). */
+    start: (firstId?: number) => setSelection((s) => startSelecting(s, firstId)),
     stop: () => setSelection(stopSelecting()),
     toggle: (id: number) => setSelection((s) => toggleSelected(s, id)),
     toggleAll: () =>

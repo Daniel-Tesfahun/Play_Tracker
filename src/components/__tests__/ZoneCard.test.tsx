@@ -36,7 +36,9 @@ function Harness({
   onUndo = jest.fn(),
   onAddPlayer = jest.fn(),
   onToggleCollapse = jest.fn(),
+  onLongPressSelect = jest.fn(),
 }: {
+  onLongPressSelect?: (id: number) => void;
   initial?: Zone;
   onToggleCollapse?: (id: number) => void;
   onEdit?: (z: Zone) => void;
@@ -55,6 +57,7 @@ function Harness({
       onReset={onReset}
       onAddPlayer={onAddPlayer}
       onToggleCollapse={onToggleCollapse}
+      onLongPressSelect={onLongPressSelect}
       onEdit={onEdit}
     />
   );
@@ -87,15 +90,51 @@ describe('ZoneCard', () => {
     expect(screen.getByTestId('zone-count-1')).toHaveTextContent('0');
   });
 
-  it('opens edit on header long press and via the edit button without counting a game', async () => {
+  it('press-and-hold on the header starts selecting this station', async () => {
+    const onLongPressSelect = jest.fn();
     const onEdit = jest.fn();
-    await render(<Harness onEdit={onEdit} />);
+    await render(<Harness onLongPressSelect={onLongPressSelect} onEdit={onEdit} />);
 
     await fireEvent(screen.getByTestId('zone-header-1'), 'longPress');
-    await fireEvent.press(screen.getByTestId('zone-edit-1'));
 
-    expect(onEdit).toHaveBeenCalledTimes(2);
+    expect(onLongPressSelect).toHaveBeenCalledWith(1);
+    expect(onEdit).not.toHaveBeenCalled();
     expect(screen.getByTestId('zone-count-1')).toHaveTextContent('0');
+  });
+
+  it('opens edit from the ⋯ button without toggling the card', async () => {
+    const onEdit = jest.fn();
+    const onToggleCollapse = jest.fn();
+    await render(<Harness onEdit={onEdit} onToggleCollapse={onToggleCollapse} />);
+    await fireEvent.press(screen.getByTestId('zone-edit-1'));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onToggleCollapse).not.toHaveBeenCalled();
+  });
+
+  it('tapping non-button parts of a collapsed header toggles it; its +1 does not', async () => {
+    const onToggleCollapse = jest.fn();
+    const onIncrement = jest.fn();
+    await render(
+      <ZoneCard
+        zone={baseZone}
+        share={0}
+        collapsed
+        onToggleCollapse={onToggleCollapse}
+        onIncrement={onIncrement}
+        onDecrementPlayer={noop}
+        onUndo={noop}
+        onReset={noop}
+        onAddPlayer={noop}
+        onEdit={noop}
+      />,
+    );
+    await fireEvent.press(screen.getByTestId('zone-count-1'));
+    await fireEvent.press(screen.getByText('Zone 1'));
+    expect(onToggleCollapse).toHaveBeenCalledTimes(2);
+
+    await fireEvent.press(screen.getByTestId('zone-plus-1'));
+    expect(onIncrement).toHaveBeenCalledTimes(1);
+    expect(onToggleCollapse).toHaveBeenCalledTimes(2);
   });
 
   it('exposes reset and undo right on the card', async () => {

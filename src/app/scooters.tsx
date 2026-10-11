@@ -243,7 +243,7 @@ export default function ScootersScreen() {
       </HeroCard>
       <SectionHeading
         title={`Fleet · ${s.scooters.length}`}
-        onSelect={ids.length > 0 ? select.start : undefined}
+        onSelect={ids.length > 0 ? () => select.start() : undefined}
         selecting={select.active}
       />
     </View>
@@ -306,6 +306,7 @@ export default function ScootersScreen() {
                     clock={clock}
                     collapsed={collapse.isCollapsed(sc.id)}
                     onToggleCollapse={collapse.toggle}
+                    onLongPressSelect={select.start}
                     onAllocate={s.allocate}
                     onClearAllocation={s.clearAllocation}
                     onStart={s.start}

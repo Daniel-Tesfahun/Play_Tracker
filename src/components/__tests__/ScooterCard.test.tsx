@@ -23,7 +23,7 @@ async function renderCard(
   scooter: Scooter,
   now: number,
   clock: ClockPrefs = H24,
-  extra: { collapsed?: boolean; onToggleCollapse?: (id: number) => void } = {},
+  extra: { collapsed?: boolean; onToggleCollapse?: (id: number) => void; onLongPressSelect?: (id: number) => void } = {},
 ) {
   const props = {
     onAllocate: jest.fn(),
@@ -182,9 +182,13 @@ describe('ScooterCard', () => {
     expect(props.onPause).toHaveBeenCalledWith(7);
   });
 
-  it('tapping the header toggles collapse; long press edits', async () => {
+  it('tapping the header toggles collapse; press-and-hold starts selecting', async () => {
     const onToggleCollapse = jest.fn();
-    const props = await renderCard({ ...idle, startedAt: START }, START + MIN, H24, { onToggleCollapse });
+    const onLongPressSelect = jest.fn();
+    const props = await renderCard({ ...idle, startedAt: START }, START + MIN, H24, {
+      onToggleCollapse,
+      onLongPressSelect,
+    });
 
     await fireEvent.press(screen.getByTestId('scooter-header-7'));
     expect(onToggleCollapse).toHaveBeenCalledWith(7);
@@ -192,6 +196,31 @@ describe('ScooterCard', () => {
     expect(props.onStop).not.toHaveBeenCalled();
 
     await fireEvent(screen.getByTestId('scooter-header-7'), 'longPress');
+    expect(onLongPressSelect).toHaveBeenCalledWith(7);
+    expect(props.onEdit).not.toHaveBeenCalled();
+  });
+
+  it('collapsed: tapping the live time or name toggles; the row buttons do their own thing', async () => {
+    const onToggleCollapse = jest.fn();
+    const props = await renderCard({ ...idle, startedAt: START, allocatedMinutes: 30 }, START + MIN, H24, {
+      collapsed: true,
+      onToggleCollapse,
+    });
+
+    await fireEvent.press(screen.getByTestId('scooter-time-7'));
+    await fireEvent.press(screen.getByText('Scooter 7'));
+    expect(onToggleCollapse).toHaveBeenCalledTimes(2);
+
+    await fireEvent.press(screen.getByTestId('scooter-pause-7'));
+    await fireEvent.press(screen.getByTestId('scooter-stop-7'));
+    expect(props.onPause).toHaveBeenCalledWith(7);
+    expect(props.onStop).toHaveBeenCalledWith(7);
+    expect(onToggleCollapse).toHaveBeenCalledTimes(2);
+  });
+
+  it('opens edit from the ⋯ button', async () => {
+    const props = await renderCard(idle, START, H24, { onToggleCollapse: jest.fn() });
+    await fireEvent.press(screen.getByTestId('scooter-edit-7'));
     expect(props.onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
   });
 });

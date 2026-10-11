@@ -111,7 +111,7 @@ export default function PsScreen() {
       </HeroCard>
       <SectionHeading
         title={`Stations · ${summary.zoneCount}`}
-        onSelect={ids.length > 0 ? select.start : undefined}
+        onSelect={ids.length > 0 ? () => select.start() : undefined}
         selecting={select.active}
       />
     </View>
@@ -165,6 +165,7 @@ export default function PsScreen() {
                     share={zoneShare(zone, summary.totalGames)}
                     collapsed={collapse.isCollapsed(zone.id)}
                     onToggleCollapse={collapse.toggle}
+                    onLongPressSelect={select.start}
                     onIncrement={z.increment}
                     onDecrementPlayer={z.decrementPlayer}
                     onUndo={z.undoLast}
