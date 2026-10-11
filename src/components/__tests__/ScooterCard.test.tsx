@@ -181,4 +181,17 @@ describe('ScooterCard', () => {
     await fireEvent.press(screen.getByTestId('scooter-pause-7'));
     expect(props.onPause).toHaveBeenCalledWith(7);
   });
+
+  it('tapping the header toggles collapse; long press edits', async () => {
+    const onToggleCollapse = jest.fn();
+    const props = await renderCard({ ...idle, startedAt: START }, START + MIN, H24, { onToggleCollapse });
+
+    await fireEvent.press(screen.getByTestId('scooter-header-7'));
+    expect(onToggleCollapse).toHaveBeenCalledWith(7);
+    expect(props.onStart).not.toHaveBeenCalled();
+    expect(props.onStop).not.toHaveBeenCalled();
+
+    await fireEvent(screen.getByTestId('scooter-header-7'), 'longPress');
+    expect(props.onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
+  });
 });

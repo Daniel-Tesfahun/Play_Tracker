@@ -32,7 +32,10 @@ function subtitle(zone: Zone): string {
   return `${game} · ${zone.players.length} ${zone.players.length === 1 ? 'player' : 'players'}`;
 }
 
-/** One PS + TV station. Tap anywhere to log a game; long-press to edit. */
+/**
+ * One PS + TV station. Games are added only with the +1 / player buttons;
+ * tapping the header (icon + name) collapses or expands the card, long-press edits.
+ */
 function ZoneCardBase({
   zone,
   share,
@@ -67,17 +70,8 @@ function ZoneCardBase({
   );
 
   return (
-    <PressableScale
+    <View
       testID={`zone-card-${zone.id}`}
-      onPress={() => onIncrement(zone.id)}
-      onLongPress={() => onEdit(zone)}
-      delayLongPress={350}
-      pressedScale={0.985}
-      accessibilityRole="button"
-      accessibilityLabel={`${zone.name}, ${zone.gamesToday} games today`}
-      accessibilityHint="Tap to add a game. Long press to edit."
-      accessibilityState={{ expanded: !collapsed }}
-      containerStyle={{ flex: 1 }}
       className={`flex-1 overflow-hidden rounded-3xl border bg-surface ${played ? 'border-brand/40' : 'border-line'}`}
     >
       {/* Accent strip: lights up once the station has been played today. */}
@@ -85,25 +79,39 @@ function ZoneCardBase({
 
       <View className={collapsed ? 'px-4 py-3' : 'p-4 pt-3'}>
         <View className="flex-row items-center gap-3">
-          <View
-            className={`h-11 w-11 items-center justify-center rounded-2xl ${played ? 'bg-brandDim' : 'bg-elevated'}`}
+          <PressableScale
+            onPress={() => onToggleCollapse?.(zone.id)}
+            onLongPress={() => onEdit(zone)}
+            delayLongPress={350}
+            pressedScale={0.98}
+            accessibilityRole="button"
+            accessibilityLabel={`${zone.name}, ${zone.gamesToday} games today`}
+            accessibilityHint={`Tap to ${collapsed ? 'expand' : 'collapse'}. Long press to edit.`}
+            accessibilityState={{ expanded: !collapsed }}
+            testID={`zone-header-${zone.id}`}
+            containerStyle={{ flex: 1 }}
+            className="flex-row items-center gap-3"
           >
-            <MaterialCommunityIcons name="sony-playstation" size={22} color={played ? c.brandInk : c.idle} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-base font-bold text-ink" numberOfLines={1}>
-              {zone.name}
-            </Text>
-            <View className="mt-0.5 flex-row items-center gap-1">
-              <Ionicons name="disc-outline" size={12} color={zone.currentGame ? c.muted : c.faint} />
-              <Text
-                className={`flex-1 text-xs font-medium ${zone.currentGame ? 'text-muted' : 'text-faint'}`}
-                numberOfLines={1}
-              >
-                {subtitle(zone)}
-              </Text>
+            <View
+              className={`h-11 w-11 items-center justify-center rounded-2xl ${played ? 'bg-brandDim' : 'bg-elevated'}`}
+            >
+              <MaterialCommunityIcons name="sony-playstation" size={22} color={played ? c.brandInk : c.idle} />
             </View>
-          </View>
+            <View className="flex-1">
+              <Text className="text-base font-bold text-ink" numberOfLines={1}>
+                {zone.name}
+              </Text>
+              <View className="mt-0.5 flex-row items-center gap-1">
+                <Ionicons name="disc-outline" size={12} color={zone.currentGame ? c.muted : c.faint} />
+                <Text
+                  className={`flex-1 text-xs font-medium ${zone.currentGame ? 'text-muted' : 'text-faint'}`}
+                  numberOfLines={1}
+                >
+                  {subtitle(zone)}
+                </Text>
+              </View>
+            </View>
+          </PressableScale>
 
           {collapsed ? (
             <>
@@ -213,7 +221,7 @@ function ZoneCardBase({
           </>
         )}
       </View>
-    </PressableScale>
+    </View>
   );
 }
 

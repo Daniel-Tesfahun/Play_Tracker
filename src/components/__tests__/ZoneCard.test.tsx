@@ -35,8 +35,10 @@ function Harness({
   onReset = jest.fn(),
   onUndo = jest.fn(),
   onAddPlayer = jest.fn(),
+  onToggleCollapse = jest.fn(),
 }: {
   initial?: Zone;
+  onToggleCollapse?: (id: number) => void;
   onEdit?: (z: Zone) => void;
   onReset?: (z: Zone) => void;
   onUndo?: (id: number) => void;
@@ -52,6 +54,7 @@ function Harness({
       onUndo={onUndo}
       onReset={onReset}
       onAddPlayer={onAddPlayer}
+      onToggleCollapse={onToggleCollapse}
       onEdit={onEdit}
     />
   );
@@ -65,19 +68,30 @@ describe('ZoneCard', () => {
     expect(screen.getByTestId('zone-count-1')).toHaveTextContent('0');
   });
 
-  it('increments on card tap and on the +1 button', async () => {
+  it('adds games only with the +1 button', async () => {
     await render(<Harness />);
-    await fireEvent.press(screen.getByTestId('zone-card-1'));
-    await fireEvent.press(screen.getByTestId('zone-card-1'));
     await fireEvent.press(screen.getByTestId('zone-plus-1'));
-    expect(screen.getByTestId('zone-count-1')).toHaveTextContent('3');
+    await fireEvent.press(screen.getByTestId('zone-plus-1'));
+    expect(screen.getByTestId('zone-count-1')).toHaveTextContent('2');
   });
 
-  it('opens edit on long press and via the edit button without counting a game', async () => {
+  it('tapping the header collapses/expands and never adds a game', async () => {
+    const onToggleCollapse = jest.fn();
+    await render(<Harness onToggleCollapse={onToggleCollapse} />);
+
+    await fireEvent.press(screen.getByTestId('zone-header-1'));
+    await fireEvent.press(screen.getByTestId('zone-header-1'));
+
+    expect(onToggleCollapse).toHaveBeenCalledTimes(2);
+    expect(onToggleCollapse).toHaveBeenCalledWith(1);
+    expect(screen.getByTestId('zone-count-1')).toHaveTextContent('0');
+  });
+
+  it('opens edit on header long press and via the edit button without counting a game', async () => {
     const onEdit = jest.fn();
     await render(<Harness onEdit={onEdit} />);
 
-    await fireEvent(screen.getByTestId('zone-card-1'), 'longPress');
+    await fireEvent(screen.getByTestId('zone-header-1'), 'longPress');
     await fireEvent.press(screen.getByTestId('zone-edit-1'));
 
     expect(onEdit).toHaveBeenCalledTimes(2);

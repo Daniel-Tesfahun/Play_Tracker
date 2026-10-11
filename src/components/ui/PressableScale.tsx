@@ -50,16 +50,16 @@ export function PressableScale({
   const opacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] });
 
   return (
-    <Animated.View
-      className={containerClassName}
-      style={[containerStyle, { transform: [{ scale }], opacity: disabled ? 0.4 : opacity }]}
-    >
+    // The wrapper's opacity is always the animated value. Swapping it for a plain number
+    // when disabled can leave the native-driven animation in control (stuck at full
+    // opacity on device), so the disabled dimming lives on the inner Pressable instead.
+    <Animated.View className={containerClassName} style={[containerStyle, { transform: [{ scale }], opacity }]}>
       <Pressable
         {...rest}
         disabled={disabled}
         hitSlop={hitSlop}
         className={className}
-        style={style}
+        style={[style, disabled ? { opacity: 0.4 } : null]}
         onPressIn={(e) => {
           pressIn();
           onPressIn?.(e);

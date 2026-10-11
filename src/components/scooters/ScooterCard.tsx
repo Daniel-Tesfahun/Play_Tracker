@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
+import { PressableScale } from '@/components/ui/PressableScale';
 import type { Scooter } from '@/db/types';
 import { computeTimerState, type TimerPhase } from '@/lib/timer';
 import { formatClock, formatDuration, formatMinutes, type ClockPrefs } from '@/lib/time';
@@ -60,7 +61,8 @@ function caption(scooter: Scooter, phase: TimerPhase, elapsedMs: number, clock: 
   }
   const started = `Started ${formatClock(scooter.startedAt ?? 0, clock)}`;
   if (phase === 'open') return `${started} · counting up`;
-  if (phase === 'expired') return `${started} · over by ${formatDuration(elapsedMs - scooter.allocatedMinutes * MINUTE)}`;
+  if (phase === 'expired')
+    return `${started} · over by ${formatDuration(elapsedMs - scooter.allocatedMinutes * MINUTE)}`;
   return `${started} · ${formatDuration(elapsedMs)} of ${formatMinutes(scooter.allocatedMinutes)}`;
 }
 
@@ -92,11 +94,7 @@ function ScooterCardBase({
   const dirty = running || scooter.allocatedMinutes > 0;
   const idleAndEmpty = timer.phase === 'idle' && scooter.allocatedMinutes === 0;
   // Running: full-strength timer. Booked: dimmer countdown preview. Empty: a quiet "Ready".
-  const headlineClass = running
-    ? 'text-6xl text-ink'
-    : idleAndEmpty
-      ? 'text-4xl text-muted'
-      : 'text-6xl text-muted';
+  const headlineClass = running ? 'text-6xl text-ink' : idleAndEmpty ? 'text-4xl text-muted' : 'text-6xl text-muted';
 
   // Buzz once when a ride crosses into "ending soon" or overtime.
   const lastPhase = useRef(timer.phase);
@@ -145,7 +143,11 @@ function ScooterCardBase({
   const timeText = (
     <Text
       testID={`scooter-time-${scooter.id}`}
-      className={collapsed ? `text-2xl font-extrabold ${running ? 'text-ink' : 'text-muted'}` : `mt-3 font-extrabold ${headlineClass}`}
+      className={
+        collapsed
+          ? `text-2xl font-extrabold ${running ? 'text-ink' : 'text-muted'}`
+          : `mt-3 font-extrabold ${headlineClass}`
+      }
       // Only set `color` when overriding: a `color: undefined` key would wipe the class color (→ black).
       style={[
         { fontVariant: ['tabular-nums'] },
@@ -171,15 +173,31 @@ function ScooterCardBase({
 
       <View className={collapsed ? 'px-4 py-3' : 'p-4 pt-3'}>
         <View className="flex-row items-center gap-3">
-          <View className={`h-11 w-11 items-center justify-center rounded-2xl ${running ? style.badge : 'bg-scootDim'}`}>
-            <MaterialCommunityIcons name="scooter" size={22} color={running ? color : c.scoot} />
-          </View>
-          <View className="flex-1 gap-1">
-            <Text className="text-base font-bold text-ink" numberOfLines={1}>
-              {scooter.name}
-            </Text>
-            {badge}
-          </View>
+          <PressableScale
+            onPress={() => onToggleCollapse?.(scooter.id)}
+            onLongPress={() => onEdit(scooter)}
+            delayLongPress={350}
+            pressedScale={0.98}
+            accessibilityRole="button"
+            accessibilityLabel={`${scooter.name}, ${style.label}`}
+            accessibilityHint={`Tap to ${collapsed ? 'expand' : 'collapse'}. Long press to edit.`}
+            accessibilityState={{ expanded: !collapsed }}
+            testID={`scooter-header-${scooter.id}`}
+            containerStyle={{ flex: 1 }}
+            className="flex-row items-center gap-3"
+          >
+            <View
+              className={`h-11 w-11 items-center justify-center rounded-2xl ${running ? style.badge : 'bg-scootDim'}`}
+            >
+              <MaterialCommunityIcons name="scooter" size={22} color={running ? color : c.scoot} />
+            </View>
+            <View className="flex-1 gap-1">
+              <Text className="text-base font-bold text-ink" numberOfLines={1}>
+                {scooter.name}
+              </Text>
+              {badge}
+            </View>
+          </PressableScale>
 
           {collapsed ? (
             <>
