@@ -133,10 +133,22 @@ describe('ZoneCard', () => {
     expect(screen.getByTestId('zone-count-1')).toHaveTextContent('4');
   });
 
-  it('shows games not credited to a player', async () => {
-    await render(<Harness initial={withPlayers} />);
-    await fireEvent.press(screen.getByTestId('zone-plus-1'));
+  it('shows games not credited to a player (e.g. from a removed player)', async () => {
+    await render(<Harness initial={{ ...withPlayers, gamesToday: 4, unassignedToday: 1 }} />);
     expect(screen.getByText('1 game not credited to a player')).toBeOnTheScreen();
+  });
+
+  it('hides the station +1 once the station has players', async () => {
+    await render(<Harness initial={withPlayers} />);
+    expect(screen.queryByTestId('zone-plus-1')).toBeNull();
+    // Games go through the players instead.
+    await fireEvent.press(screen.getByTestId('player-plus-10'));
+    expect(screen.getByTestId('zone-count-1')).toHaveTextContent('4');
+  });
+
+  it('brings the station +1 back when there are no players', async () => {
+    await render(<Harness initial={{ ...withPlayers, players: [], unassignedToday: 3 }} />);
+    expect(screen.getByTestId('zone-plus-1')).toBeOnTheScreen();
   });
 
   it('offers to add players, labelled as optional when there are none', async () => {
@@ -168,15 +180,40 @@ describe('ZoneCard', () => {
         onEdit={noop}
       />,
     );
-    // Count, +1, and the player summary stay; player rows and undo/reset are hidden.
+    // Count and the player summary stay; with players, a players chip replaces +1.
     expect(screen.getByTestId('zone-count-1')).toHaveTextContent('3');
-    expect(screen.getByTestId('zone-plus-1')).toBeOnTheScreen();
+    expect(screen.queryByTestId('zone-plus-1')).toBeNull();
     expect(screen.getByText('EA FC 26 · 2 players')).toBeOnTheScreen();
     expect(screen.queryByTestId('player-row-10')).toBeNull();
     expect(screen.queryByTestId('zone-undo-1')).toBeNull();
 
     await fireEvent.press(screen.getByTestId('zone-collapse-1'));
     expect(onToggleCollapse).toHaveBeenCalledWith(1);
+
+    // The chip opens the card so a player can be picked.
+    await fireEvent.press(screen.getByTestId('zone-players-chip-1'));
+    expect(onToggleCollapse).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the quick +1 on a collapsed station without players', async () => {
+    const onIncrement = jest.fn();
+    await render(
+      <ZoneCard
+        zone={baseZone}
+        share={0}
+        collapsed
+        onToggleCollapse={noop}
+        onIncrement={onIncrement}
+        onDecrementPlayer={noop}
+        onUndo={noop}
+        onReset={noop}
+        onAddPlayer={noop}
+        onEdit={noop}
+      />,
+    );
+    await fireEvent.press(screen.getByTestId('zone-plus-1'));
+    expect(onIncrement).toHaveBeenCalledWith(1);
+    expect(screen.queryByTestId('zone-players-chip-1')).toBeNull();
   });
 
   it('labels the collapse button for screen readers', async () => {

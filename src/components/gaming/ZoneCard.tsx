@@ -74,6 +74,22 @@ function ZoneCardBase({
     </PressableScale>
   );
 
+  // With players, every game belongs to someone: the station-level +1 goes away.
+  // Collapsed, a players chip stands in for it and opens the card to pick a player.
+  const playersChip = (
+    <PressableScale
+      onPress={() => onToggleCollapse?.(zone.id)}
+      accessibilityRole="button"
+      accessibilityLabel={`${zone.players.length} players on ${zone.name}. Expand to add a game for a player`}
+      testID={`zone-players-chip-${zone.id}`}
+      pressedScale={0.92}
+      className="h-11 min-w-[56px] flex-row items-center justify-center gap-1.5 rounded-2xl border border-brand/40 bg-brandDim px-3"
+    >
+      <Ionicons name="people" size={18} color={c.brandInk} />
+      <Text className="text-base font-extrabold text-brandInk">{zone.players.length}</Text>
+    </PressableScale>
+  );
+
   return (
     <View
       testID={`zone-card-${zone.id}`}
@@ -125,7 +141,7 @@ function ZoneCardBase({
                 value={zone.gamesToday}
                 className={`min-w-[36px] text-right text-3xl font-extrabold ${played ? 'text-ink' : 'text-faint'}`}
               />
-              {plusButton('sm')}
+              {hasPlayers ? playersChip : plusButton('sm')}
             </>
           ) : (
             <IconButton
@@ -176,7 +192,7 @@ function ZoneCardBase({
                   onPress={() => onUndo(zone.id)}
                   testID={`zone-undo-${zone.id}`}
                 />
-                {plusButton('lg')}
+                {hasPlayers ? null : plusButton('lg')}
               </View>
             </View>
 
