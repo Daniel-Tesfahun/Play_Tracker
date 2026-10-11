@@ -223,4 +223,18 @@ describe('ScooterCard', () => {
     await fireEvent.press(screen.getByTestId('scooter-edit-7'));
     expect(props.onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
   });
+
+  it('collapsed and riding: badge and live time share the line under the name', async () => {
+    await renderCard({ ...idle, startedAt: START, allocatedMinutes: 30 }, START + 10 * MIN, H24, {
+      collapsed: true,
+      onToggleCollapse: jest.fn(),
+    });
+    const badge = screen.getByTestId('scooter-badge-7');
+    const time = screen.getByTestId('scooter-time-7');
+    expect(badge).toHaveTextContent('Riding');
+    expect(time).toHaveTextContent('20:00');
+    // Same row container: badge and time are siblings under the name, not crammed beside the buttons.
+    const badgeRow = badge.parent?.parent?.parent;
+    expect(badgeRow?.children).toContain(time);
+  });
 });

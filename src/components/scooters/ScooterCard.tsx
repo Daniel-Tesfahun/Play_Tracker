@@ -141,7 +141,7 @@ function ScooterCardBase({
       testID={`scooter-time-${scooter.id}`}
       className={
         collapsed
-          ? `text-2xl font-extrabold ${running ? 'text-ink' : 'text-muted'}`
+          ? `text-lg font-extrabold ${running ? 'text-ink' : 'text-muted'}`
           : `mt-3 font-extrabold ${headlineClass}`
       }
       // Only set `color` when overriding: a `color: undefined` key would wipe the class color (→ black).
@@ -160,7 +160,7 @@ function ScooterCardBase({
     <SwapIn swapKey={style.label} style={{ alignSelf: 'flex-start' }}>
       <Pulse active={overtime}>
         <View testID={`scooter-badge-${scooter.id}`} className={`rounded-full px-2.5 py-1 ${style.badge}`}>
-          <Text className={`text-[10px] font-extrabold uppercase tracking-wider ${style.badgeText}`}>
+          <Text className={`text-[10px] font-extrabold uppercase tracking-wider ${style.badgeText}`} numberOfLines={1}>
             {style.label}
           </Text>
         </View>
@@ -195,7 +195,7 @@ function ScooterCardBase({
         >
           <View
             accessible
-            accessibilityLabel={`${scooter.name}, ${style.label}`}
+            accessibilityLabel={`${scooter.name}, ${style.label}${collapsed ? `, ${headline(timer.phase, timer.remainingMs, timer.elapsedMs, timer.overtimeMs)}` : ''}`}
             className="flex-1 flex-row items-center gap-3"
           >
             <View
@@ -207,13 +207,21 @@ function ScooterCardBase({
               <Text className="text-base font-bold text-ink" numberOfLines={1}>
                 {scooter.name}
               </Text>
-              {badge}
+              {collapsed ? (
+                // Collapsed rows are tight: badge + live time share the line under the name,
+                // leaving the right side for the action buttons only.
+                <View className="flex-row items-center gap-2">
+                  {badge}
+                  {timeText}
+                </View>
+              ) : (
+                badge
+              )}
             </View>
           </View>
 
           {collapsed ? (
             <>
-              {timeText}
               {running ? pauseButton('md') : null}
               {running ? (
                 <IconButton

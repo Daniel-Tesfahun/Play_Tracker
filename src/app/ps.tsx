@@ -12,6 +12,7 @@ import { HeroCard, HeroPill } from '@/components/ui/HeroCard';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { SelectRow } from '@/components/ui/SelectRow';
+import { SwipeRow } from '@/components/ui/SwipeRow';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import type { Zone } from '@/db/types';
 import { useCollapsed } from '@/hooks/useCollapsed';
@@ -69,6 +70,11 @@ export default function PsScreen() {
       `Clear all ${summary.totalGames} games logged today on every station? Players and stations are kept.`,
       'Reset day',
       z.resetAllToday,
+    );
+
+  const deleteZone = (zone: Zone) =>
+    confirmDestructive('Delete station', `Remove ${zone.name}, its players, and its history?`, 'Delete', () =>
+      z.deleteZone(zone.id),
     );
 
   const bulkReset = () =>
@@ -159,20 +165,39 @@ export default function PsScreen() {
                   );
                 }
                 return (
-                  <ZoneCard
+                  <SwipeRow
                     key={zone.id}
-                    zone={zone}
-                    share={zoneShare(zone, summary.totalGames)}
-                    collapsed={collapse.isCollapsed(zone.id)}
-                    onToggleCollapse={collapse.toggle}
-                    onLongPressSelect={select.start}
-                    onIncrement={z.increment}
-                    onDecrementPlayer={z.decrementPlayer}
-                    onUndo={z.undoLast}
-                    onReset={resetZone}
-                    onAddPlayer={(zn) => setAddingPlayerTo(zn.id)}
-                    onEdit={(zn) => setEditingId(zn.id)}
-                  />
+                    testID={`swipe-zone-${zone.id}`}
+                    left={{
+                      label: 'Delete',
+                      icon: 'trash-outline',
+                      fill: 'danger',
+                      ink: 'canvas',
+                      onPress: () => deleteZone(zone),
+                    }}
+                    right={{
+                      label: 'Edit',
+                      icon: 'create-outline',
+                      fill: 'brand',
+                      ink: 'onAccent',
+                      onPress: () => setEditingId(zone.id),
+                    }}
+                  >
+                    <ZoneCard
+                      key={zone.id}
+                      zone={zone}
+                      share={zoneShare(zone, summary.totalGames)}
+                      collapsed={collapse.isCollapsed(zone.id)}
+                      onToggleCollapse={collapse.toggle}
+                      onLongPressSelect={select.start}
+                      onIncrement={z.increment}
+                      onDecrementPlayer={z.decrementPlayer}
+                      onUndo={z.undoLast}
+                      onReset={resetZone}
+                      onAddPlayer={(zn) => setAddingPlayerTo(zn.id)}
+                      onEdit={(zn) => setEditingId(zn.id)}
+                    />
+                  </SwipeRow>
                 );
               }
               // Spacer keeps the last row's cards the same width as the rest.
@@ -220,7 +245,14 @@ export default function PsScreen() {
       ) : (
         <BottomDock
           actions={[
-            { key: 'add', label: 'Station', accessibilityLabel: 'Add station', icon: 'add', tone: 'brand', onPress: z.addZone },
+            {
+              key: 'add',
+              label: 'Station',
+              accessibilityLabel: 'Add station',
+              icon: 'add',
+              tone: 'brand',
+              onPress: z.addZone,
+            },
             {
               key: 'collapse',
               label: allCollapsed ? 'Expand' : 'Collapse',

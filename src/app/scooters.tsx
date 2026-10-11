@@ -6,19 +6,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CustomMinutesSheet } from '@/components/scooters/CustomMinutesSheet';
 import { ScooterCard } from '@/components/scooters/ScooterCard';
 import { ScooterEditSheet } from '@/components/scooters/ScooterEditSheet';
-import {
-  canEnd,
-  canPause,
-  canReset,
-  canResume,
-  canStart,
-  scooterStatus,
-} from '@/components/scooters/scooterStatus';
+import { canEnd, canPause, canReset, canResume, canStart, scooterStatus } from '@/components/scooters/scooterStatus';
 import { BottomDock, BulkDock, dockSpace, type DockAction } from '@/components/ui/BottomDock';
 import { HeroCard, HeroPill } from '@/components/ui/HeroCard';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { SelectRow } from '@/components/ui/SelectRow';
+import { SwipeRow } from '@/components/ui/SwipeRow';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import type { Scooter } from '@/db/types';
 import { useClockPrefs } from '@/hooks/useClockPrefs';
@@ -107,6 +101,16 @@ export default function ScootersScreen() {
       s.resetDay,
     );
 
+  const deleteScooter = (scooter: Scooter) =>
+    confirmDestructive(
+      'Delete scooter',
+      scooter.startedAt !== null
+        ? `${scooter.name} has a ride running. Remove it and its ride history? The current ride won't be saved.`
+        : `Remove ${scooter.name} and its ride history?`,
+      'Delete',
+      () => s.remove(scooter.id),
+    );
+
   const addMinutes = (targetIds: number[], minutes: number) => {
     if (targetIds.length === 1 && targetIds[0] !== undefined) s.allocate(targetIds[0], minutes);
     else s.allocateMany(targetIds, minutes);
@@ -156,16 +160,14 @@ export default function ScootersScreen() {
       onPress: () => s.startMany(startIds),
       disabled: startIds.length === 0,
     },
-    ...PRESET_MINUTES.map(
-      (m): DockAction => ({
-        key: `bulk-add-${m}`,
-        label: `+${formatMinutes(m)}`,
-        accessibilityLabel: `Add ${m} minutes to selected scooters`,
-        icon: 'time-outline',
-        tone: 'scoot',
-        onPress: () => s.allocateMany(allChosenIds, m),
-      }),
-    ),
+    ...PRESET_MINUTES.map((m): DockAction => ({
+      key: `bulk-add-${m}`,
+      label: `+${formatMinutes(m)}`,
+      accessibilityLabel: `Add ${m} minutes to selected scooters`,
+      icon: 'time-outline',
+      tone: 'scoot',
+      onPress: () => s.allocateMany(allChosenIds, m),
+    })),
     {
       key: 'bulk-custom',
       label: 'Time…',
@@ -299,24 +301,43 @@ export default function ScootersScreen() {
                   );
                 }
                 return (
-                  <ScooterCard
+                  <SwipeRow
                     key={sc.id}
-                    scooter={sc}
-                    now={now}
-                    clock={clock}
-                    collapsed={collapse.isCollapsed(sc.id)}
-                    onToggleCollapse={collapse.toggle}
-                    onLongPressSelect={select.start}
-                    onAllocate={s.allocate}
-                    onClearAllocation={s.clearAllocation}
-                    onStart={s.start}
-                    onStop={s.stop}
-                    onPause={s.pause}
-                    onResume={s.resume}
-                    onCustomMinutes={(target) => setMinutesFor([target.id])}
-                    onReset={resetScooter}
-                    onEdit={(target) => setEditingId(target.id)}
-                  />
+                    testID={`swipe-scooter-${sc.id}`}
+                    left={{
+                      label: 'Delete',
+                      icon: 'trash-outline',
+                      fill: 'danger',
+                      ink: 'canvas',
+                      onPress: () => deleteScooter(sc),
+                    }}
+                    right={{
+                      label: 'Edit',
+                      icon: 'create-outline',
+                      fill: 'scoot',
+                      ink: 'canvas',
+                      onPress: () => setEditingId(sc.id),
+                    }}
+                  >
+                    <ScooterCard
+                      key={sc.id}
+                      scooter={sc}
+                      now={now}
+                      clock={clock}
+                      collapsed={collapse.isCollapsed(sc.id)}
+                      onToggleCollapse={collapse.toggle}
+                      onLongPressSelect={select.start}
+                      onAllocate={s.allocate}
+                      onClearAllocation={s.clearAllocation}
+                      onStart={s.start}
+                      onStop={s.stop}
+                      onPause={s.pause}
+                      onResume={s.resume}
+                      onCustomMinutes={(target) => setMinutesFor([target.id])}
+                      onReset={resetScooter}
+                      onEdit={(target) => setEditingId(target.id)}
+                    />
+                  </SwipeRow>
                 );
               }
               // Spacer keeps the last row's cards the same width as the rest.
@@ -338,7 +359,14 @@ export default function ScootersScreen() {
       ) : (
         <BottomDock
           actions={[
-            { key: 'add', label: 'Scooter', accessibilityLabel: 'Add scooter', icon: 'add', tone: 'scoot', onPress: s.addScooter },
+            {
+              key: 'add',
+              label: 'Scooter',
+              accessibilityLabel: 'Add scooter',
+              icon: 'add',
+              tone: 'scoot',
+              onPress: s.addScooter,
+            },
             {
               key: 'collapse',
               label: allCollapsed ? 'Expand' : 'Collapse',
