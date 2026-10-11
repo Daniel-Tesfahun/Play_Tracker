@@ -1,28 +1,36 @@
 import type { Palette } from '@/theme/palette';
 
+export type SectionId = 'ps' | 'scooters';
+
 export interface SectionInfo {
+  id: SectionId;
   title: string;
   description: string;
+  href: '/ps' | '/scooters';
   icon: 'game-controller' | 'scooter';
+  /** Accent for icons and text on surfaces. */
   accent: keyof Palette;
-  /** Full class name (not built at runtime) so Tailwind can see it. */
-  tileClass: string;
+  /** Which hero gradient the section uses (see palette.js gradients). */
+  gradient: 'zones' | 'scooters';
 }
 
-/** Keyed by route name in src/app/(tabs). */
-export const SECTIONS: Record<string, SectionInfo> = {
-  index: {
+export const SECTIONS: Record<SectionId, SectionInfo> = {
+  ps: {
+    id: 'ps',
     title: 'PS',
-    description: 'PlayStation stations, game counts, and players',
+    description: 'Stations, game counts, and players',
+    href: '/ps',
     icon: 'game-controller',
-    accent: 'brand',
-    tileClass: 'bg-brandDim',
+    accent: 'brandInk',
+    gradient: 'zones',
   },
   scooters: {
+    id: 'scooters',
     title: 'Scooters',
-    description: 'Rental rides, timers, and booked time',
+    description: 'Rentals, ride timers, and booked time',
+    href: '/scooters',
     icon: 'scooter',
     accent: 'scoot',
-    tileClass: 'bg-scootDim',
+    gradient: 'scooters',
   },
 };

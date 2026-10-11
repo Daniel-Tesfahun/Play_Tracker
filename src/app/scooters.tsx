@@ -1,16 +1,15 @@
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { useMemo, useRef, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CustomMinutesSheet } from '@/components/scooters/CustomMinutesSheet';
 import { ScooterCard } from '@/components/scooters/ScooterCard';
 import { ScooterEditSheet } from '@/components/scooters/ScooterEditSheet';
-import { AddTile } from '@/components/ui/AddTile';
 import { HeroCard, HeroPill } from '@/components/ui/HeroCard';
-import { IconButton } from '@/components/ui/IconButton';
+import { BottomDock, dockSpace } from '@/components/ui/BottomDock';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { SectionToolbar } from '@/components/ui/SectionToolbar';
+import { SectionHeading } from '@/components/ui/SectionHeading';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import type { Scooter } from '@/db/types';
 import { useClockPrefs } from '@/hooks/useClockPrefs';
@@ -18,10 +17,11 @@ import { useCollapsed } from '@/hooks/useCollapsed';
 import { useNow } from '@/hooks/useNow';
 import { useScooters } from '@/hooks/useScooters';
 import { confirmDestructive } from '@/lib/confirm';
+import { goHome } from '@/lib/navigation';
 import { toGridRows, type GridCell } from '@/lib/grid';
 import { computeTimerState } from '@/lib/timer';
 import { formatClock, formatMinutes, formatTimeZoneName } from '@/lib/time';
-import { useGradients, usePalette } from '@/theme/usePalette';
+import { useGradients } from '@/theme/usePalette';
 
 type Row = GridCell<Scooter>[];
 
@@ -29,8 +29,8 @@ const rowKey = (row: Row) => row.map((cell) => (cell.kind === 'item' ? cell.item
 
 export default function ScootersScreen() {
   const s = useScooters();
-  const c = usePalette();
   const gradients = useGradients();
+  const insets = useSafeAreaInsets();
   const clock = useClockPrefs();
   const { width } = useWindowDimensions();
   const columns = width >= 640 ? 2 : 1;
@@ -53,7 +53,7 @@ export default function ScootersScreen() {
   ).length;
   const busy = riding > 0 || s.scooters.some((sc) => sc.allocatedMinutes > 0);
 
-  const rows = useMemo(() => toGridRows(s.scooters, columns), [s.scooters, columns]);
+  const rows = useMemo(() => toGridRows(s.scooters, columns, false), [s.scooters, columns]);
   const ids = s.scooters.map((sc) => sc.id);
   const allCollapsed = collapse.allCollapsed(ids);
   const editing = s.scooters.find((sc) => sc.id === editingId) ?? null;
@@ -86,14 +86,10 @@ export default function ScootersScreen() {
   const header = (
     <View>
       <ScreenHeader
+        onBack={goHome}
         eyebrow={eyebrow}
         title="Scooters"
-        actions={
-          <>
-            <ThemeToggle />
-            <IconButton icon="add" label="Add scooter" variant="filled" color={c.ink} onPress={s.addScooter} />
-          </>
-        }
+        actions={<ThemeToggle />}
       />
       <HeroCard
         label="Riding now"
@@ -113,15 +109,7 @@ export default function ScootersScreen() {
         <HeroPill label="Rides today" value={String(s.stats.sessionsToday)} />
         <HeroPill label="Ride time" value={formatMinutes(s.stats.minutesToday)} />
       </HeroCard>
-      <SectionToolbar
-        title={`Fleet · ${s.scooters.length}`}
-        resetLabel="Reset day"
-        onReset={resetDay}
-        resetDisabled={!busy && s.stats.sessionsToday === 0}
-        allCollapsed={allCollapsed}
-        onToggleAll={() => collapse.setAll(ids, !allCollapsed)}
-        testID="scooters-reset-day"
-      />
+      <SectionHeading title={`Fleet · ${s.scooters.length}`} />
     </View>
   );
 
@@ -138,7 +126,8 @@ export default function ScootersScreen() {
         }}
         // Running timers re-render each second; idle lists only on real changes.
         extraData={`${now}-${allCollapsed}`}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+        // Room for the floating dock so the last card can scroll above it.
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: dockSpace(insets.bottom) }}
         ItemSeparatorComponent={() => <View className="h-3" />}
         ListHeaderComponent={header}
         renderItem={({ item: row }) => (
@@ -165,13 +154,34 @@ export default function ScootersScreen() {
                   />
                 );
               }
-              if (cell.kind === 'add') {
-                return <AddTile key="add" label="Add scooter" minHeight={88} onPress={s.addScooter} />;
-              }
-              return <View key={cell.key} className="flex-1" />;
+              // Spacer keeps the last row's cards the same width as the rest.
+              return <View key={cell.kind === 'spacer' ? cell.key : cell.kind} className="flex-1" />;
             })}
           </View>
         )}
+      />
+
+      <BottomDock
+        actions={[
+          { key: 'add', label: 'Scooter', accessibilityLabel: 'Add scooter', icon: 'add', tone: 'scoot', onPress: s.addScooter },
+          {
+            key: 'collapse',
+            label: allCollapsed ? 'Expand' : 'Collapse',
+            accessibilityLabel: allCollapsed ? 'Expand all scooters' : 'Collapse all scooters',
+            icon: allCollapsed ? 'chevron-expand' : 'chevron-collapse',
+            tone: 'neutral',
+            onPress: () => collapse.setAll(ids, !allCollapsed),
+            disabled: ids.length === 0,
+          },
+          {
+            key: 'reset',
+            label: 'Reset day',
+            icon: 'refresh',
+            tone: 'danger',
+            onPress: resetDay,
+            disabled: !busy && s.stats.sessionsToday === 0,
+          },
+        ]}
       />
 
       <CustomMinutesSheet scooter={customScooter} onClose={() => setCustomFor(null)} onAdd={s.allocate} />

@@ -21,4 +21,12 @@ describe('toGridRows', () => {
     expect(rows).toHaveLength(5);
     expect(rows.every((r) => r.length === 3)).toBe(true);
   });
+
+  it('can leave out the add tile', () => {
+    expect(toGridRows([1, 2, 3], 2, false).map((r) => r.map((c) => c.kind))).toEqual([
+      ['item', 'item'],
+      ['item', 'spacer'],
+    ]);
+    expect(toGridRows([], 2, false)).toEqual([]);
+  });
 });

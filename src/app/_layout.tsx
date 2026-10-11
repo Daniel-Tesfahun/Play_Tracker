@@ -64,7 +64,8 @@ export default function RootLayout() {
             <Stack
               screenOptions={{
                 headerShown: false,
-                animation: 'none',
+                // Home → section slides in; back (arrow or Android gesture) slides out.
+                animation: 'slide_from_right',
                 contentStyle: { backgroundColor: c.canvas },
               }}
             />

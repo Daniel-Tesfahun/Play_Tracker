@@ -57,11 +57,10 @@ Two apps from one project (`app.config.js` switches on `APP_VARIANT`), so both c
 ```
 src/
   app/                    # Expo Router routes (screens only)
-    _layout.tsx           # SQLiteProvider + migrations, root stack
-    (tabs)/
-      _layout.tsx         # Tabs with the confirm-to-switch section bar
-      index.tsx           # PS (stations)
-      scooters.tsx        # Scooters
+    _layout.tsx           # Fonts, theme, SQLite + migrations, TanStack Query, stack
+    index.tsx             # Landing: pick PS or Scooters
+    ps.tsx                # PS (stations)
+    scooters.tsx          # Scooters
   components/
     ui/                   # PressableScale, Button, IconButton, Sheet, StatTile, ...
     gaming/               # ZoneCard, ZoneEditSheet
@@ -81,7 +80,7 @@ src/
 
 ## How it works
 
-**Navigation**: the bottom bar shows only the section you're in (**PS** or **Scooters**). Tap it to switch; a confirmation sheet makes sure it's intentional. Each screen header has a light/dark toggle, saved on the device.
+**Navigation**: the app opens on a landing screen with two cards, **PS** and **Scooters**, each showing today's numbers. Tap one to open it; the back arrow (or Android back) returns to the landing screen. Each screen header has a light/dark toggle, saved on the device.
 
 **Speed**: every action updates TanStack Query's cache on the same frame as the tap and writes to SQLite in the background (if a write fails, the screen re-reads from SQLite). Lists use FlashList, and React Compiler memoizes components.
 
