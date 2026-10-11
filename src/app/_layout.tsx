@@ -31,7 +31,7 @@ function Loading() {
   const c = usePalette();
   return (
     <View className="flex-1 items-center justify-center bg-canvas">
-      <ActivityIndicator color={c.brand} />
+      <ActivityIndicator color={c.brandInk} />
     </View>
   );
 }

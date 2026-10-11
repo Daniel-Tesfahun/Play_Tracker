@@ -88,7 +88,7 @@ function ZoneCardBase({
           <View
             className={`h-11 w-11 items-center justify-center rounded-2xl ${played ? 'bg-brandDim' : 'bg-elevated'}`}
           >
-            <MaterialCommunityIcons name="sony-playstation" size={22} color={played ? c.brand : c.idle} />
+            <MaterialCommunityIcons name="sony-playstation" size={22} color={played ? c.brandInk : c.idle} />
           </View>
           <View className="flex-1">
             <Text className="text-base font-bold text-ink" numberOfLines={1}>
@@ -204,8 +204,8 @@ function ZoneCardBase({
                 containerClassName="mt-3 self-start"
                 className="h-11 flex-row items-center gap-2 rounded-full border border-dashed border-brand/40 px-4"
               >
-                <Ionicons name="person-add-outline" size={16} color={c.brand} />
-                <Text className="text-sm font-semibold text-brand">
+                <Ionicons name="person-add-outline" size={16} color={c.brandInk} />
+                <Text className="text-sm font-semibold text-brandInk">
                   {hasPlayers ? 'Add player' : 'Add players (optional)'}
                 </Text>
               </PressableScale>

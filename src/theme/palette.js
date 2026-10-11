@@ -4,7 +4,8 @@
  * and components that need raw values (icons, gradients) read them via usePalette().
  *
  * Roles:
- *   brand  – Gaming Zones accent (violet)      scoot – Scooters accent (cyan)
+ *   brand  – PS accent fill (violet)           brandInk – violet for text/icons on surfaces
+ *   scoot  – Scooters accent (cyan)
  *   neon   – running / go (green)              amber – ending soon
  *   danger – overtime, destructive (red)      *Dim  – tinted fill behind that color
  */
@@ -17,8 +18,9 @@ const themes = {
     lineStrong: '#363C5E',
     ink: '#EEF0FF',
     muted: '#A0A7C8',
-    faint: '#6B7296',
-    brand: '#8B5CF6',
+    faint: '#8C93B8',
+    brand: '#7C3AED',
+    brandInk: '#B69CFF',
     brandDim: '#241B4A',
     scoot: '#22D3EE',
     scootDim: '#0A3140',
@@ -39,17 +41,18 @@ const themes = {
     lineStrong: '#CDD2E6',
     ink: '#14162E',
     muted: '#575E80',
-    faint: '#8D93B2',
+    faint: '#60668A',
     brand: '#7C3AED',
+    brandInk: '#6D28D9',
     brandDim: '#EEE8FE',
-    scoot: '#0891B2',
-    scootDim: '#DDF5FB',
-    neon: '#059669',
-    neonDim: '#D9F6EC',
-    amber: '#D97706',
-    amberDim: '#FDF0D5',
-    danger: '#DC2626',
-    dangerDim: '#FEE2E2',
+    scoot: '#0E7490',
+    scootDim: '#E0F5FA',
+    neon: '#047857',
+    neonDim: '#DDF5EB',
+    amber: '#A14B06',
+    amberDim: '#FDF2DC',
+    danger: '#B91C1C',
+    dangerDim: '#FDE8E8',
     idle: '#7A809E',
     onAccent: '#FFFFFF',
   },
@@ -63,14 +66,14 @@ const gradients = {
   },
   light: {
     zones: ['#7C3AED', '#4F46E5'],
-    scooters: ['#0891B2', '#3B82F6'],
+    scooters: ['#0E7490', '#1D4ED8'],
   },
 };
 
 /** Distinct hues so each player on a zone is recognizable at a glance. */
 const playerColors = {
   dark: ['#A78BFA', '#22D3EE', '#A3E635', '#FB923C', '#60A5FA', '#FACC15', '#2DD4BF', '#818CF8'],
-  light: ['#7C3AED', '#0891B2', '#65A30D', '#EA580C', '#2563EB', '#CA8A04', '#0D9488', '#4F46E5'],
+  light: ['#7C3AED', '#0891B2', '#4D7C0F', '#EA580C', '#2563EB', '#A16207', '#0D9488', '#4F46E5'],
 };
 
 const tokens = Object.keys(themes.dark);

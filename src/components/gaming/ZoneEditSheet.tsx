@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
@@ -103,7 +103,7 @@ function ZoneEditForm({
 
   return (
     <Sheet visible title={zone.name} onClose={onClose}>
-      <ScrollView style={{ maxHeight: 520 }} keyboardShouldPersistTaps="handled">
+      <View>
         <Field label="Station name">
           <TextInput
             value={name}
@@ -195,7 +195,7 @@ function ZoneEditForm({
             })
           }
         />
-      </ScrollView>
+      </View>
     </Sheet>
   );
 }

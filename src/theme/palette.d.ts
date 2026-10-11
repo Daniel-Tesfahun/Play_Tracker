@@ -10,6 +10,7 @@ export interface Palette {
   readonly muted: string;
   readonly faint: string;
   readonly brand: string;
+  readonly brandInk: string;
   readonly brandDim: string;
   readonly scoot: string;
   readonly scootDim: string;

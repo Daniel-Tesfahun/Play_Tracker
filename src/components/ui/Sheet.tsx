@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 
 import { IconButton } from './IconButton';
 
@@ -11,33 +13,57 @@ interface SheetProps {
   children: ReactNode;
 }
 
-/** Bottom sheet built on Modal: tap the backdrop or the close button to dismiss. */
+/** Room kept above the sheet so the backdrop stays tappable to dismiss. */
+const TOP_GAP = 48;
+
+/**
+ * Bottom sheet built on Modal: tap the backdrop or the close button to dismiss.
+ *
+ * Android doesn't resize a Modal's window for the keyboard (and KeyboardAvoidingView
+ * does nothing there), so the sheet lifts itself by the keyboard's height and its
+ * content scrolls when sheet + keyboard would be taller than the screen.
+ */
 export function Sheet({ visible, title, onClose, children }: SheetProps) {
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
+  const keyboard = useKeyboardHeight();
+
+  const bottomPad = keyboard > 0 ? keyboard + 12 : Math.max(insets.bottom, 16) + 8;
+  const maxHeight = screenHeight - insets.top - TOP_GAP;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-end"
-      >
-        <Pressable
-          className="absolute inset-0 bg-black/60"
-          onPress={onClose}
-          accessibilityLabel="Close"
-        />
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
+      <View className="flex-1 justify-end">
+        <Pressable className="absolute inset-0 bg-black/60" onPress={onClose} accessibilityLabel="Close" />
         <View
           className="rounded-t-[28px] border border-b-0 border-line bg-surface px-5 pt-3"
-          style={{ paddingBottom: Math.max(insets.bottom, 16) + 8 }}
+          style={{ paddingBottom: bottomPad, maxHeight }}
+          testID="sheet"
         >
           <View className="mb-2 h-1 w-10 self-center rounded-full bg-lineStrong" />
           <View className="mb-3 flex-row items-center justify-between">
-            <Text className="text-lg font-bold text-ink">{title}</Text>
+            <Text className="flex-1 text-lg font-bold text-ink" numberOfLines={1}>
+              {title}
+            </Text>
             <IconButton icon="close" label="Close" onPress={onClose} />
           </View>
-          {children}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            style={{ flexGrow: 0 }}
+          >
+            {children}
+          </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

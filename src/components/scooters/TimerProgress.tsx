@@ -43,7 +43,8 @@ export function TimerProgress({ progress, color, milestonesReached, endLabel }: 
             <Text
               key={m}
               className={`absolute w-10 text-center text-[11px] ${reached ? 'font-bold' : 'font-medium text-faint'}`}
-              style={{ left: `${m * 100}%`, marginLeft: -20, color: reached ? color : undefined }}
+              // No `color` key unless reached: undefined would wipe text-faint and render black.
+              style={[{ left: `${m * 100}%`, marginLeft: -20 }, reached ? { color } : null]}
             >
               {m * 100}%
             </Text>

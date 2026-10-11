@@ -16,7 +16,7 @@ const styles: Record<ButtonVariant, { box: string; text: string; icon: keyof Pal
   go: { box: 'bg-neon', text: 'text-canvas', icon: 'canvas' },
   secondary: { box: 'border border-line bg-elevated', text: 'text-ink', icon: 'ink' },
   danger: { box: 'border border-danger/30 bg-dangerDim', text: 'text-danger', icon: 'danger' },
-  dangerSolid: { box: 'bg-danger', text: 'text-onAccent', icon: 'onAccent' },
+  dangerSolid: { box: 'bg-danger', text: 'text-canvas', icon: 'canvas' },
 };
 
 interface ButtonProps {

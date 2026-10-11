@@ -95,7 +95,7 @@ function ScooterCardBase({
   const headlineClass = running
     ? 'text-6xl text-ink'
     : idleAndEmpty
-      ? 'text-4xl text-faint'
+      ? 'text-4xl text-muted'
       : 'text-6xl text-muted';
 
   // Buzz once when a ride crosses into "ending soon" or overtime.
@@ -145,11 +145,12 @@ function ScooterCardBase({
   const timeText = (
     <Text
       testID={`scooter-time-${scooter.id}`}
-      className={collapsed ? `text-2xl font-extrabold ${running ? 'text-ink' : 'text-faint'}` : `mt-3 font-extrabold ${headlineClass}`}
-      style={{
-        fontVariant: ['tabular-nums'],
-        color: paused ? c.muted : timer.phase === 'expired' ? color : undefined,
-      }}
+      className={collapsed ? `text-2xl font-extrabold ${running ? 'text-ink' : 'text-muted'}` : `mt-3 font-extrabold ${headlineClass}`}
+      // Only set `color` when overriding: a `color: undefined` key would wipe the class color (→ black).
+      style={[
+        { fontVariant: ['tabular-nums'] },
+        paused ? { color: c.muted } : timer.phase === 'expired' ? { color } : null,
+      ]}
     >
       {headline(timer.phase, timer.remainingMs, timer.elapsedMs, timer.overtimeMs)}
     </Text>
