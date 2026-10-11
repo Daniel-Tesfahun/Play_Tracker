@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import type { ComponentProps } from 'react';
-import { Text, View } from 'react-native';
+import type { ComponentProps, ReactNode } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Palette } from '@/theme/palette';
@@ -8,12 +9,13 @@ import { usePalette } from '@/theme/usePalette';
 
 import { PressableScale } from './PressableScale';
 
-type Tone = 'brand' | 'scoot' | 'neutral' | 'danger';
+export type DockTone = 'brand' | 'scoot' | 'go' | 'neutral' | 'danger';
 
 /** Literal class names per tone so Tailwind can see them. */
-const TONES: Record<Tone, { box: string; text: string; icon: keyof Palette }> = {
+const TONES: Record<DockTone, { box: string; text: string; icon: keyof Palette }> = {
   brand: { box: 'bg-brand', text: 'text-onAccent', icon: 'onAccent' },
   scoot: { box: 'bg-scoot', text: 'text-canvas', icon: 'canvas' },
+  go: { box: 'bg-neon', text: 'text-canvas', icon: 'canvas' },
   neutral: { box: 'border border-line bg-elevated', text: 'text-ink', icon: 'ink' },
   danger: { box: 'border border-danger/30 bg-dangerDim', text: 'text-danger', icon: 'danger' },
 };
@@ -24,61 +26,144 @@ export interface DockAction {
   /** Spoken label when the visible one is short (e.g. "Add station"). */
   accessibilityLabel?: string;
   icon: ComponentProps<typeof Ionicons>['name'];
-  tone: Tone;
+  tone: DockTone;
   onPress: () => void;
   disabled?: boolean;
 }
 
-/** Visible height of the dock itself, excluding the safe-area inset below it. */
+/** Visible height of the normal dock, excluding the safe-area inset below it. */
 export const DOCK_HEIGHT = 76;
+/** Visible height of the bulk-actions dock (status row + actions row). */
+export const BULK_DOCK_HEIGHT = 128;
 
-/**
- * Floating bar of the screen's most-used actions, kept within thumb reach.
- * Lists add `dockSpace(insets.bottom)` of bottom padding so nothing hides behind it.
- */
-export function BottomDock({ actions }: { actions: DockAction[] }) {
+const SHADOW = {
+  elevation: 12,
+  shadowColor: '#000',
+  shadowOpacity: 0.25,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 6 },
+} as const;
+
+function DockButton({ action, stretch }: { action: DockAction; stretch: boolean }) {
   const c = usePalette();
-  const insets = useSafeAreaInsets();
+  const t = TONES[action.tone];
+  return (
+    <PressableScale
+      onPress={action.onPress}
+      disabled={action.disabled}
+      accessibilityRole="button"
+      accessibilityLabel={action.accessibilityLabel ?? action.label}
+      accessibilityState={{ disabled: !!action.disabled }}
+      testID={`dock-${action.key}`}
+      pressedScale={0.94}
+      containerStyle={stretch ? { flex: 1 } : undefined}
+      className={`h-14 flex-row items-center justify-center gap-1.5 rounded-2xl px-4 ${t.box}`}
+    >
+      <Ionicons name={action.icon} size={18} color={c[t.icon]} />
+      <Text className={`text-sm font-bold ${t.text}`} numberOfLines={1}>
+        {action.label}
+      </Text>
+    </PressableScale>
+  );
+}
 
+function DockFrame({ children, testID }: { children: ReactNode; testID?: string }) {
+  const insets = useSafeAreaInsets();
   return (
     <View
       pointerEvents="box-none"
       className="absolute bottom-0 left-0 right-0 px-4"
       style={{ paddingBottom: Math.max(insets.bottom, 12) }}
     >
-      <View
-        accessibilityRole="toolbar"
-        className="flex-row gap-2 rounded-3xl border border-line bg-surface p-2"
-        style={{ elevation: 12, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }}
-      >
-        {actions.map((a) => {
-          const t = TONES[a.tone];
-          return (
-            <PressableScale
-              key={a.key}
-              onPress={a.onPress}
-              disabled={a.disabled}
-              accessibilityRole="button"
-              accessibilityLabel={a.accessibilityLabel ?? a.label}
-              accessibilityState={{ disabled: !!a.disabled }}
-              testID={`dock-${a.key}`}
-              pressedScale={0.94}
-              containerStyle={{ flex: 1 }}
-              className={`h-14 flex-row items-center justify-center gap-1.5 rounded-2xl px-2 ${t.box}`}
-            >
-              <Ionicons name={a.icon} size={18} color={c[t.icon]} />
-              <Text className={`text-sm font-bold ${t.text}`} numberOfLines={1}>
-                {a.label}
-              </Text>
-            </PressableScale>
-          );
-        })}
+      <View accessibilityRole="toolbar" testID={testID} className="rounded-3xl border border-line bg-surface p-2" style={SHADOW}>
+        {children}
       </View>
     </View>
   );
 }
 
+/**
+ * Floating bar of the screen's most-used actions, kept within thumb reach.
+ * Lists add `dockSpace(insets.bottom)` of bottom padding so nothing hides behind it.
+ */
+export function BottomDock({ actions }: { actions: DockAction[] }) {
+  return (
+    <DockFrame testID="dock">
+      <View className="flex-row gap-2">
+        {actions.map((a) => (
+          <DockButton key={a.key} action={a} stretch />
+        ))}
+      </View>
+    </DockFrame>
+  );
+}
+
+interface BulkDockProps {
+  count: number;
+  /** e.g. "stations" / "scooters" for "3 stations selected". */
+  noun: [singular: string, plural: string];
+  allSelected: boolean;
+  onToggleAll: () => void;
+  onDone: () => void;
+  actions: DockAction[];
+}
+
+/** Takes the dock's place while selecting: selection status on top, bulk actions below (scrolls sideways). */
+export function BulkDock({ count, noun, allSelected, onToggleAll, onDone, actions }: BulkDockProps) {
+  const c = usePalette();
+  const label = `${count} ${count === 1 ? noun[0] : noun[1]} selected`;
+
+  return (
+    <Animated.View
+      entering={SlideInDown.springify().damping(20).stiffness(220)}
+      pointerEvents="box-none"
+      style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
+    >
+      <DockFrame testID="bulk-dock">
+        <View className="mb-2 flex-row items-center gap-2 px-2 pt-1">
+          <Animated.View key={count} entering={FadeIn.duration(150)} style={{ flex: 1 }}>
+            <Text className="text-base font-extrabold text-ink" accessibilityLiveRegion="polite" testID="bulk-count">
+              {label}
+            </Text>
+          </Animated.View>
+          <PressableScale
+            onPress={onToggleAll}
+            accessibilityRole="button"
+            accessibilityLabel={allSelected ? 'Select none' : 'Select all'}
+            testID="bulk-toggle-all"
+            pressedScale={0.94}
+            className="h-11 flex-row items-center gap-1.5 rounded-full px-3"
+          >
+            <Ionicons name={allSelected ? 'remove-circle-outline' : 'checkmark-done'} size={18} color={c.muted} />
+            <Text className="text-sm font-bold text-muted">{allSelected ? 'None' : 'All'}</Text>
+          </PressableScale>
+          <PressableScale
+            onPress={onDone}
+            accessibilityRole="button"
+            accessibilityLabel="Done selecting"
+            testID="bulk-done"
+            pressedScale={0.94}
+            className="h-11 items-center justify-center rounded-full bg-ink px-4"
+          >
+            <Text className="text-sm font-bold text-canvas">Done</Text>
+          </PressableScale>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ gap: 8 }}
+        >
+          {actions.map((a) => (
+            <DockButton key={a.key} action={{ ...a, disabled: a.disabled || count === 0 }} stretch={false} />
+          ))}
+        </ScrollView>
+      </DockFrame>
+    </Animated.View>
+  );
+}
+
 /** Bottom padding a scrolling list needs so its last card clears the dock. */
-export function dockSpace(bottomInset: number): number {
-  return DOCK_HEIGHT + Math.max(bottomInset, 12) + 16;
+export function dockSpace(bottomInset: number, bulk = false): number {
+  return (bulk ? BULK_DOCK_HEIGHT : DOCK_HEIGHT) + Math.max(bottomInset, 12) + 16;
 }

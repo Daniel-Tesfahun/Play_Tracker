@@ -7,9 +7,9 @@ jest.mock('expo-haptics', () => ({
 }));
 
 // Reanimated (and its worklets runtime) need their official mocks outside a device.
-jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'));
+jest.mock('react-native-worklets', () => jest.requireActual('react-native-worklets/lib/module/mock'));
 // The official mock lacks useReducedMotion; tests run with motion allowed.
 jest.mock('react-native-reanimated', () => ({
-  ...require('react-native-reanimated/mock'),
+  ...jest.requireActual('react-native-reanimated/mock'),
   useReducedMotion: () => false,
 }));

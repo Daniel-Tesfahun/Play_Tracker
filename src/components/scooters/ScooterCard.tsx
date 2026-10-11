@@ -16,6 +16,7 @@ import { usePalette } from '@/theme/usePalette';
 
 import { pausedStyle, phaseStyle } from './phaseStyle';
 import { PresetBubbles } from './PresetBubbles';
+import { headline } from './scooterStatus';
 import { TimerProgress } from './TimerProgress';
 
 const MINUTE = 60_000;
@@ -37,20 +38,6 @@ interface ScooterCardProps {
   onCustomMinutes: (scooter: Scooter) => void;
   onReset: (scooter: Scooter) => void;
   onEdit: (scooter: Scooter) => void;
-}
-
-function headline(phase: TimerPhase, remainingMs: number | null, elapsedMs: number, overtimeMs: number) {
-  switch (phase) {
-    case 'idle':
-      return remainingMs === null ? 'Ready' : formatDuration(remainingMs);
-    case 'open':
-      return formatDuration(elapsedMs);
-    case 'active':
-    case 'warning':
-      return formatDuration(remainingMs ?? 0);
-    case 'expired':
-      return `+${formatDuration(overtimeMs)}`;
-  }
 }
 
 function caption(scooter: Scooter, phase: TimerPhase, elapsedMs: number, clock: ClockPrefs) {

@@ -1,6 +1,7 @@
-import { activeElapsedMs, addAllocation, billableMinutes } from '@/lib/timer';
+import { activeElapsedMs, addAllocation, billableMinutes, MAX_ALLOCATED_MINUTES } from '@/lib/timer';
 import { dayKey } from '@/lib/time';
 
+import { placeholders } from './sql';
 import type { Database, Scooter, ScooterDayStats } from './types';
 
 const SCOOTER_COLUMNS = `id, name, started_at AS startedAt, allocated_minutes AS allocatedMinutes,
@@ -142,4 +143,75 @@ export async function getScooterDayStats(db: Database, day = dayKey()): Promise<
     sessionsToday: rows.length,
     minutesToday: rows.reduce((sum, r) => sum + billableMinutes(r.endedAt - r.startedAt - r.pausedMs), 0),
   };
+}
+
+// ---- Bulk actions (selection mode). Each only touches scooters it applies to,
+// and is a no-op for an empty list.
+
+/** Starts rides on the idle scooters among `ids`; running ones keep their start. */
+export async function startSessions(db: Database, ids: readonly number[], now = Date.now()): Promise<void> {
+  if (ids.length === 0) return;
+  await db.runAsync(
+    `UPDATE scooters SET started_at = ?, paused_at = NULL, paused_ms = 0
+      WHERE started_at IS NULL AND id IN (${placeholders(ids)})`,
+    now,
+    ...ids,
+  );
+}
+
+export async function pauseSessions(db: Database, ids: readonly number[], now = Date.now()): Promise<void> {
+  if (ids.length === 0) return;
+  await db.runAsync(
+    `UPDATE scooters SET paused_at = ?
+      WHERE started_at IS NOT NULL AND paused_at IS NULL AND id IN (${placeholders(ids)})`,
+    now,
+    ...ids,
+  );
+}
+
+export async function resumeSessions(db: Database, ids: readonly number[], now = Date.now()): Promise<void> {
+  if (ids.length === 0) return;
+  await db.runAsync(
+    `UPDATE scooters SET paused_ms = paused_ms + MAX(0, ? - paused_at), paused_at = NULL
+      WHERE paused_at IS NOT NULL AND id IN (${placeholders(ids)})`,
+    now,
+    ...ids,
+  );
+}
+
+/** Adds the same minutes to every scooter in `ids`, each capped at MAX_ALLOCATED_MINUTES. */
+export async function allocateMinutesMany(db: Database, ids: readonly number[], minutes: number): Promise<void> {
+  if (ids.length === 0) return;
+  await db.runAsync(
+    `UPDATE scooters SET allocated_minutes = MIN(?, MAX(0, allocated_minutes + ?))
+      WHERE id IN (${placeholders(ids)})`,
+    MAX_ALLOCATED_MINUTES,
+    minutes,
+    ...ids,
+  );
+}
+
+/**
+ * Ends every running ride among `ids` and logs each one, exactly like ending
+ * them one by one. Returns the total billable minutes.
+ */
+export async function stopSessions(db: Database, ids: readonly number[], now = Date.now()): Promise<number> {
+  let billed = 0;
+  for (const id of ids) billed += (await stopSession(db, id, now)) ?? 0;
+  return billed;
+}
+
+/** Cancels rides and bookings without logging them. */
+export async function resetScooters(db: Database, ids: readonly number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.runAsync(`UPDATE scooters SET ${IDLE_SET} WHERE id IN (${placeholders(ids)})`, ...ids);
+}
+
+export async function deleteScooters(db: Database, ids: readonly number[]): Promise<void> {
+  if (ids.length === 0) return;
+  const list = placeholders(ids);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM scooter_sessions WHERE scooter_id IN (${list})`, ...ids);
+    await db.runAsync(`DELETE FROM scooters WHERE id IN (${list})`, ...ids);
+  });
 }

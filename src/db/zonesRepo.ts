@@ -1,5 +1,6 @@
 import { dayKey } from '@/lib/time';
 
+import { placeholders } from './sql';
 import type { Database, Player, Zone } from './types';
 
 export const MAX_PLAYERS_PER_ZONE = 8;
@@ -183,4 +184,36 @@ export async function zoneTitleBreakdown(
     zoneId,
     day,
   );
+}
+
+// ---- Bulk actions (selection mode). Each is a no-op for an empty list.
+
+/** Sets (or clears, with null/blank) the game title on several stations at once. */
+export async function setZonesGame(db: Database, zoneIds: readonly number[], game: string | null): Promise<void> {
+  if (zoneIds.length === 0) return;
+  await db.runAsync(
+    `UPDATE zones SET current_game = ? WHERE id IN (${placeholders(zoneIds)})`,
+    game?.trim() || null,
+    ...zoneIds,
+  );
+}
+
+/** Clears today's games on the given stations. Earlier days are kept. */
+export async function resetZonesToday(db: Database, zoneIds: readonly number[], now = Date.now()): Promise<void> {
+  if (zoneIds.length === 0) return;
+  await db.runAsync(
+    `DELETE FROM game_plays WHERE day = ? AND zone_id IN (${placeholders(zoneIds)})`,
+    dayKey(now),
+    ...zoneIds,
+  );
+}
+
+export async function deleteZones(db: Database, zoneIds: readonly number[]): Promise<void> {
+  if (zoneIds.length === 0) return;
+  const list = placeholders(zoneIds);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM game_plays WHERE zone_id IN (${list})`, ...zoneIds);
+    await db.runAsync(`DELETE FROM zone_players WHERE zone_id IN (${list})`, ...zoneIds);
+    await db.runAsync(`DELETE FROM zones WHERE id IN (${list})`, ...zoneIds);
+  });
 }

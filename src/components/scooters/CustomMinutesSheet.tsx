@@ -9,36 +9,55 @@ import { addAllocation, MAX_ALLOCATED_MINUTES, parseCustomMinutes } from '@/lib/
 import { formatMinutes } from '@/lib/time';
 import { usePalette } from '@/theme/usePalette';
 
-const QUICK_PICKS = [5, 10, 20, 45, 90, 120] as const;
+const QUICK_PICKS = [5, 10, 15, 20, 30, 45, 60, 90, 120] as const;
 
 interface CustomMinutesSheetProps {
-  scooter: Scooter | null;
+  /** One scooter (from its card) or several (bulk). Hidden when empty. */
+  scooters: Scooter[];
   onClose: () => void;
-  onAdd: (id: number, minutes: number) => void;
+  onAdd: (ids: number[], minutes: number) => void;
 }
 
-export function CustomMinutesSheet({ scooter, ...rest }: CustomMinutesSheetProps) {
-  if (!scooter) return null;
-  // Keyed so the field starts empty for each scooter.
-  return <CustomMinutesForm key={scooter.id} scooter={scooter} {...rest} />;
+export function CustomMinutesSheet({ scooters, ...rest }: CustomMinutesSheetProps) {
+  if (scooters.length === 0) return null;
+  // Keyed so the field starts empty for each new target set.
+  return <CustomMinutesForm key={scooters.map((s) => s.id).join('-')} scooters={scooters} {...rest} />;
 }
 
-function CustomMinutesForm({ scooter, onClose, onAdd }: CustomMinutesSheetProps & { scooter: Scooter }) {
+function summary(scooters: Scooter[], minutes: number | null): string {
+  if (scooters.length === 1) {
+    const s = scooters[0]!;
+    if (s.allocatedMinutes >= MAX_ALLOCATED_MINUTES) return `Already at the ${formatMinutes(MAX_ALLOCATED_MINUTES)} limit.`;
+    if (minutes === null) return s.allocatedMinutes > 0 ? `Booked now: ${formatMinutes(s.allocatedMinutes)}` : 'Nothing booked yet.';
+    const next = addAllocation(s.allocatedMinutes, minutes);
+    return `${s.startedAt !== null ? 'Ride' : 'Booking'} becomes ${formatMinutes(next)}${
+      next === MAX_ALLOCATED_MINUTES ? ' (the maximum)' : ''
+    }`;
+  }
+  const full = scooters.filter((s) => s.allocatedMinutes >= MAX_ALLOCATED_MINUTES).length;
+  if (full === scooters.length) return `All ${scooters.length} are already at the ${formatMinutes(MAX_ALLOCATED_MINUTES)} limit.`;
+  const base = minutes === null ? `Adds time to ${scooters.length} scooters.` : `Adds ${formatMinutes(minutes)} to each of ${scooters.length} scooters.`;
+  return full > 0 ? `${base} ${full} already at the limit won't change.` : base;
+}
+
+function CustomMinutesForm({ scooters, onClose, onAdd }: CustomMinutesSheetProps) {
   const c = usePalette();
   const [text, setText] = useState('');
   const minutes = parseCustomMinutes(text);
-  const room = MAX_ALLOCATED_MINUTES - scooter.allocatedMinutes;
-  const nextTotal = minutes === null ? null : addAllocation(scooter.allocatedMinutes, minutes);
-  const running = scooter.startedAt !== null;
+  const anyRoom = scooters.some((s) => s.allocatedMinutes < MAX_ALLOCATED_MINUTES);
+  const title = scooters.length === 1 ? `Add time · ${scooters[0]!.name}` : `Add time · ${scooters.length} scooters`;
 
   const submit = () => {
-    if (minutes === null || room <= 0) return;
-    onAdd(scooter.id, minutes);
+    if (minutes === null || !anyRoom) return;
+    onAdd(
+      scooters.map((s) => s.id),
+      minutes,
+    );
     onClose();
   };
 
   return (
-    <Sheet visible title={`Add time · ${scooter.name}`} onClose={onClose}>
+    <Sheet visible title={title} onClose={onClose}>
       <Field label="Minutes">
         <TextInput
           value={text}
@@ -74,22 +93,14 @@ function CustomMinutesForm({ scooter, onClose, onAdd }: CustomMinutesSheetProps 
       </View>
 
       <Text className="mb-4 text-sm font-medium text-muted" testID="custom-minutes-summary">
-        {room <= 0
-          ? `Already at the ${formatMinutes(MAX_ALLOCATED_MINUTES)} limit.`
-          : nextTotal === null
-            ? scooter.allocatedMinutes > 0
-              ? `Booked now: ${formatMinutes(scooter.allocatedMinutes)}`
-              : 'Nothing booked yet.'
-            : `${running ? 'Ride' : 'Booking'} becomes ${formatMinutes(nextTotal)}${
-                nextTotal === MAX_ALLOCATED_MINUTES ? ' (the maximum)' : ''
-              }`}
+        {summary(scooters, minutes)}
       </Text>
 
       <Button
         label={minutes === null ? 'Add minutes' : `Add ${formatMinutes(minutes)}`}
         variant="scoot"
         icon="add"
-        disabled={minutes === null || room <= 0}
+        disabled={minutes === null || !anyRoom}
         onPress={submit}
         testID="custom-minutes-add"
         className="mb-3"

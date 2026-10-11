@@ -18,7 +18,7 @@ export const SECTIONS: Record<SectionId, SectionInfo> = {
   ps: {
     id: 'ps',
     title: 'PS',
-    description: 'Stations, game counts, and players',
+    description: 'Stations, games, players',
     href: '/ps',
     icon: 'game-controller',
     accent: 'brandInk',
@@ -27,7 +27,7 @@ export const SECTIONS: Record<SectionId, SectionInfo> = {
   scooters: {
     id: 'scooters',
     title: 'Scooters',
-    description: 'Rentals, ride timers, and booked time',
+    description: 'Rides, timers, booked time',
     href: '/scooters',
     icon: 'scooter',
     accent: 'scoot',

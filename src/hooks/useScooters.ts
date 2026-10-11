@@ -101,6 +101,65 @@ export function useScooters() {
     resync: [listKey, statsKey],
   });
 
+  // ---- Bulk (selection mode). Patches mirror the SQL guards in scootersRepo.
+  const mapMany = (ids: number[], update: (s: Scooter) => Scooter) => {
+    const set = new Set(ids);
+    patchQuery<Scooter[]>(qc, listKey, (all) => all.map((s) => (set.has(s.id) ? update(s) : s)));
+  };
+
+  const startManyM = useOptimisticMutation<{ ids: number[]; at: number }>({
+    mutationFn: ({ ids, at }) => repo.startSessions(db, ids, at),
+    apply: (_, { ids, at }) =>
+      mapMany(ids, (s) => (s.startedAt !== null ? s : { ...s, startedAt: at, pausedAt: null, pausedMs: 0 })),
+    resync: [listKey],
+  });
+
+  const pauseManyM = useOptimisticMutation<{ ids: number[]; at: number }>({
+    mutationFn: ({ ids, at }) => repo.pauseSessions(db, ids, at),
+    apply: (_, { ids, at }) =>
+      mapMany(ids, (s) => (s.startedAt === null || s.pausedAt !== null ? s : { ...s, pausedAt: at })),
+    resync: [listKey],
+  });
+
+  const resumeManyM = useOptimisticMutation<{ ids: number[]; at: number }>({
+    mutationFn: ({ ids, at }) => repo.resumeSessions(db, ids, at),
+    apply: (_, { ids, at }) =>
+      mapMany(ids, (s) =>
+        s.pausedAt === null ? s : { ...s, pausedAt: null, pausedMs: s.pausedMs + Math.max(0, at - s.pausedAt) },
+      ),
+    resync: [listKey],
+  });
+
+  const allocateManyM = useOptimisticMutation<{ ids: number[]; minutes: number }>({
+    mutationFn: ({ ids, minutes }) => repo.allocateMinutesMany(db, ids, minutes),
+    apply: (_, { ids, minutes }) =>
+      mapMany(ids, (s) => ({ ...s, allocatedMinutes: addAllocation(s.allocatedMinutes, minutes) })),
+    resync: [listKey],
+  });
+
+  const stopManyM = useOptimisticMutation<{ ids: number[]; at: number }>({
+    mutationFn: ({ ids, at }) => repo.stopSessions(db, ids, at),
+    apply: (_, { ids }) => mapMany(ids, (s) => (s.startedAt === null ? s : idle(s))),
+    refetch: () => [statsKey],
+    resync: [listKey, statsKey],
+  });
+
+  const resetManyM = useOptimisticMutation<number[]>({
+    mutationFn: (ids) => repo.resetScooters(db, ids),
+    apply: (_, ids) => mapMany(ids, idle),
+    resync: [listKey],
+  });
+
+  const deleteManyM = useOptimisticMutation<number[]>({
+    mutationFn: (ids) => repo.deleteScooters(db, ids),
+    apply: (client, ids) => {
+      const set = new Set(ids);
+      patchQuery<Scooter[]>(client, listKey, (all) => all.filter((s) => !set.has(s.id)));
+    },
+    refetch: () => [statsKey],
+    resync: [listKey, statsKey],
+  });
+
   const addM = useOptimisticMutation<string>({
     mutationFn: (name) => repo.addScooter(db, name),
     refetch: () => [listKey],
@@ -144,5 +203,33 @@ export function useScooters() {
     addScooter: () => addM.mutate(`Scooter ${scooters.length + 1}`),
     rename: (id: number, name: string) => renameM.mutate({ id, name }),
     remove: (id: number) => removeM.mutate(id),
+    startMany: (ids: number[]) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      startManyM.mutate({ ids, at: Date.now() });
+    },
+    pauseMany: (ids: number[]) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      pauseManyM.mutate({ ids, at: Date.now() });
+    },
+    resumeMany: (ids: number[]) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      resumeManyM.mutate({ ids, at: Date.now() });
+    },
+    allocateMany: (ids: number[], minutes: number) => {
+      void Haptics.selectionAsync();
+      allocateManyM.mutate({ ids, minutes });
+    },
+    stopMany: (ids: number[]) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      stopManyM.mutate({ ids, at: Date.now() });
+    },
+    resetMany: (ids: number[]) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      resetManyM.mutate(ids);
+    },
+    deleteMany: (ids: number[]) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      deleteManyM.mutate(ids);
+    },
   };
 }

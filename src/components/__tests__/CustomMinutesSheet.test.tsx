@@ -21,12 +21,12 @@ const scooter: Scooter = {
   position: 3,
 };
 
-async function renderSheet(s: Scooter = scooter) {
+async function renderSheet(s: Scooter[] = [scooter]) {
   const onAdd = jest.fn();
   const onClose = jest.fn();
   await render(
     <SafeAreaProvider initialMetrics={metrics}>
-      <CustomMinutesSheet scooter={s} onAdd={onAdd} onClose={onClose} />
+      <CustomMinutesSheet scooters={s} onAdd={onAdd} onClose={onClose} />
     </SafeAreaProvider>,
   );
   return { onAdd, onClose };
@@ -38,7 +38,7 @@ describe('CustomMinutesSheet', () => {
     await fireEvent.changeText(screen.getByTestId('custom-minutes-input'), '25');
     expect(screen.getByTestId('custom-minutes-summary')).toHaveTextContent('Booking becomes 40m');
     await fireEvent.press(screen.getByTestId('custom-minutes-add'));
-    expect(onAdd).toHaveBeenCalledWith(3, 25);
+    expect(onAdd).toHaveBeenCalledWith([3], 25);
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -47,7 +47,7 @@ describe('CustomMinutesSheet', () => {
     await fireEvent.press(screen.getByTestId('custom-pick-45'));
     expect(screen.getByText('Add 45m')).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId('custom-minutes-add'));
-    expect(onAdd).toHaveBeenCalledWith(3, 45);
+    expect(onAdd).toHaveBeenCalledWith([3], 45);
   });
 
   it('keeps only digits and refuses zero', async () => {
@@ -61,7 +61,7 @@ describe('CustomMinutesSheet', () => {
   });
 
   it('says when the booking is already at the limit', async () => {
-    const { onAdd } = await renderSheet({ ...scooter, allocatedMinutes: MAX_ALLOCATED_MINUTES });
+    const { onAdd } = await renderSheet([{ ...scooter, allocatedMinutes: MAX_ALLOCATED_MINUTES }]);
     expect(screen.getByTestId('custom-minutes-summary')).toHaveTextContent(/limit/);
     await fireEvent.changeText(screen.getByTestId('custom-minutes-input'), '10');
     await fireEvent.press(screen.getByTestId('custom-minutes-add'));
@@ -69,8 +69,23 @@ describe('CustomMinutesSheet', () => {
   });
 
   it('talks about the ride, not a booking, when the scooter is running', async () => {
-    await renderSheet({ ...scooter, startedAt: Date.now() });
+    await renderSheet([{ ...scooter, startedAt: Date.now() }]);
     await fireEvent.changeText(screen.getByTestId('custom-minutes-input'), '30');
     expect(screen.getByTestId('custom-minutes-summary')).toHaveTextContent('Ride becomes 45m');
+  });
+
+  it('adds the same minutes to several scooters at once', async () => {
+    const { onAdd } = await renderSheet([scooter, { ...scooter, id: 4, name: 'Scooter 4' }]);
+    expect(screen.getByText('Add time · 2 scooters')).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId('custom-minutes-input'), '20');
+    expect(screen.getByTestId('custom-minutes-summary')).toHaveTextContent('Adds 20m to each of 2 scooters.');
+    await fireEvent.press(screen.getByTestId('custom-minutes-add'));
+    expect(onAdd).toHaveBeenCalledWith([3, 4], 20);
+  });
+
+  it('notes scooters in a bulk add that are already at the limit', async () => {
+    await renderSheet([scooter, { ...scooter, id: 4, allocatedMinutes: MAX_ALLOCATED_MINUTES }]);
+    await fireEvent.changeText(screen.getByTestId('custom-minutes-input'), '10');
+    expect(screen.getByTestId('custom-minutes-summary')).toHaveTextContent(/1 already at the limit/);
   });
 });

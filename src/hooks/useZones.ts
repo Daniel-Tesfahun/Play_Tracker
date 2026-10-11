@@ -120,6 +120,34 @@ export function useZones() {
     resync: [key],
   });
 
+  // ---- Bulk (selection mode)
+  const setGameManyM = useOptimisticMutation<{ ids: number[]; game: string | null }>({
+    mutationFn: ({ ids, game }) => repo.setZonesGame(db, ids, game),
+    apply: (_, { ids, game }) => {
+      const set = new Set(ids);
+      patch((list) => list.map((z) => (set.has(z.id) ? { ...z, currentGame: game?.trim() || null } : z)));
+    },
+    resync: [key],
+  });
+
+  const resetManyM = useOptimisticMutation<number[]>({
+    mutationFn: (ids) => repo.resetZonesToday(db, ids),
+    apply: (_, ids) => {
+      const set = new Set(ids);
+      patch((list) => list.map((z) => (set.has(z.id) ? clearCounts(z) : z)));
+    },
+    resync: [key],
+  });
+
+  const deleteManyM = useOptimisticMutation<number[]>({
+    mutationFn: (ids) => repo.deleteZones(db, ids),
+    apply: (_, ids) => {
+      const set = new Set(ids);
+      patch((list) => list.filter((z) => !set.has(z.id)));
+    },
+    resync: [key],
+  });
+
   const titleBreakdown = useCallback((zoneId: number) => repo.zoneTitleBreakdown(db, zoneId, day), [db, day]);
 
   return {
@@ -153,5 +181,14 @@ export function useZones() {
     renamePlayer: (playerId: number, name: string) => renamePlayerM.mutate({ playerId, name }),
     removePlayer: (playerId: number) => removePlayerM.mutate(playerId),
     titleBreakdown,
+    setGameMany: (ids: number[], game: string | null) => setGameManyM.mutate({ ids, game }),
+    resetMany: (ids: number[]) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      resetManyM.mutate(ids);
+    },
+    deleteMany: (ids: number[]) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      deleteManyM.mutate(ids);
+    },
   };
 }
