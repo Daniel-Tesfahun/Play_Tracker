@@ -304,19 +304,18 @@ export default function ScootersScreen() {
                   <SwipeRow
                     key={sc.id}
                     testID={`swipe-scooter-${sc.id}`}
+                    // Drag right → Edit on the left; drag left → Delete on the right.
                     left={{
-                      label: 'Delete',
-                      icon: 'trash-outline',
-                      fill: 'danger',
-                      ink: 'canvas',
-                      onPress: () => deleteScooter(sc),
-                    }}
-                    right={{
                       label: 'Edit',
                       icon: 'create-outline',
-                      fill: 'scoot',
-                      ink: 'canvas',
+                      tone: 'scoot',
                       onPress: () => setEditingId(sc.id),
+                    }}
+                    right={{
+                      label: 'Delete',
+                      icon: 'trash-outline',
+                      tone: 'danger',
+                      onPress: () => deleteScooter(sc),
                     }}
                   >
                     <ScooterCard

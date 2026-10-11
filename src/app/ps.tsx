@@ -168,19 +168,18 @@ export default function PsScreen() {
                   <SwipeRow
                     key={zone.id}
                     testID={`swipe-zone-${zone.id}`}
+                    // Drag right → Edit on the left; drag left → Delete on the right.
                     left={{
-                      label: 'Delete',
-                      icon: 'trash-outline',
-                      fill: 'danger',
-                      ink: 'canvas',
-                      onPress: () => deleteZone(zone),
-                    }}
-                    right={{
                       label: 'Edit',
                       icon: 'create-outline',
-                      fill: 'brand',
-                      ink: 'onAccent',
+                      tone: 'brand',
                       onPress: () => setEditingId(zone.id),
+                    }}
+                    right={{
+                      label: 'Delete',
+                      icon: 'trash-outline',
+                      tone: 'danger',
+                      onPress: () => deleteZone(zone),
                     }}
                   >
                     <ZoneCard
