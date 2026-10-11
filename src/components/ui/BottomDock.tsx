@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -67,18 +68,38 @@ function DockButton({ action, stretch }: { action: DockAction; stretch: boolean 
   );
 }
 
-function DockFrame({ children, testID }: { children: ReactNode; testID?: string }) {
+function DockFrame({
+  children,
+  testID,
+  entering,
+}: {
+  children: ReactNode;
+  testID?: string;
+  entering?: ComponentProps<typeof Animated.View>['entering'];
+}) {
   const insets = useSafeAreaInsets();
   return (
-    <View
+    <Animated.View
+      entering={entering}
       pointerEvents="box-none"
-      className="absolute bottom-0 left-0 right-0 px-4"
-      style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        paddingHorizontal: 16,
+        paddingBottom: Math.max(insets.bottom, 12),
+      }}
     >
-      <View accessibilityRole="toolbar" testID={testID} className="rounded-3xl border border-line bg-surface p-2" style={SHADOW}>
+      <View
+        accessibilityRole="toolbar"
+        testID={testID}
+        className="rounded-3xl border border-line bg-surface p-2"
+        style={SHADOW}
+      >
         {children}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -114,52 +135,61 @@ export function BulkDock({ count, noun, allSelected, onToggleAll, onDone, action
   const label = `${count} ${count === 1 ? noun[0] : noun[1]} selected`;
 
   return (
-    <Animated.View
-      entering={SlideInDown.springify().damping(20).stiffness(220)}
-      pointerEvents="box-none"
-      style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
-    >
-      <DockFrame testID="bulk-dock">
-        <View className="mb-2 flex-row items-center gap-2 px-2 pt-1">
-          <Animated.View key={count} entering={FadeIn.duration(150)} style={{ flex: 1 }}>
-            <Text className="text-base font-extrabold text-ink" accessibilityLiveRegion="polite" testID="bulk-count">
-              {label}
-            </Text>
-          </Animated.View>
-          <PressableScale
-            onPress={onToggleAll}
-            accessibilityRole="button"
-            accessibilityLabel={allSelected ? 'Select none' : 'Select all'}
-            testID="bulk-toggle-all"
-            pressedScale={0.94}
-            className="h-11 flex-row items-center gap-1.5 rounded-full px-3"
-          >
-            <Ionicons name={allSelected ? 'remove-circle-outline' : 'checkmark-done'} size={18} color={c.muted} />
-            <Text className="text-sm font-bold text-muted">{allSelected ? 'None' : 'All'}</Text>
-          </PressableScale>
-          <PressableScale
-            onPress={onDone}
-            accessibilityRole="button"
-            accessibilityLabel="Done selecting"
-            testID="bulk-done"
-            pressedScale={0.94}
-            className="h-11 items-center justify-center rounded-full bg-ink px-4"
-          >
-            <Text className="text-sm font-bold text-canvas">Done</Text>
-          </PressableScale>
-        </View>
+    <DockFrame testID="bulk-dock" entering={SlideInDown.springify().damping(20).stiffness(220)}>
+      <View className="mb-2 flex-row items-center gap-2 px-2 pt-1">
+        <Animated.View key={count} entering={FadeIn.duration(150)} style={{ flex: 1 }}>
+          <Text className="text-base font-extrabold text-ink" accessibilityLiveRegion="polite" testID="bulk-count">
+            {label}
+          </Text>
+        </Animated.View>
+        <PressableScale
+          onPress={onToggleAll}
+          accessibilityRole="button"
+          accessibilityLabel={allSelected ? 'Select none' : 'Select all'}
+          testID="bulk-toggle-all"
+          pressedScale={0.94}
+          className="h-11 flex-row items-center gap-1.5 rounded-full px-3"
+        >
+          <Ionicons name={allSelected ? 'remove-circle-outline' : 'checkmark-done'} size={18} color={c.muted} />
+          <Text className="text-sm font-bold text-muted">{allSelected ? 'None' : 'All'}</Text>
+        </PressableScale>
+        <PressableScale
+          onPress={onDone}
+          accessibilityRole="button"
+          accessibilityLabel="Done selecting"
+          testID="bulk-done"
+          pressedScale={0.94}
+          className="h-11 items-center justify-center rounded-full bg-ink px-4"
+        >
+          <Text className="text-sm font-bold text-canvas">Done</Text>
+        </PressableScale>
+      </View>
+      <View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ gap: 8 }}
+          // Let a horizontal drag that starts on a button scroll the row instead of pressing it.
+          canCancelContentTouches
+          nestedScrollEnabled
+          decelerationRate="fast"
+          contentContainerStyle={{ gap: 8, paddingRight: 24 }}
+          testID="bulk-actions"
         >
           {actions.map((a) => (
             <DockButton key={a.key} action={{ ...a, disabled: a.disabled || count === 0 }} stretch={false} />
           ))}
         </ScrollView>
-      </DockFrame>
-    </Animated.View>
+        {/* Fade at the right edge hints that more actions are off-screen. */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={[`${c.surface}00`, c.surface]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 28 }}
+        />
+      </View>
+    </DockFrame>
   );
 }
 

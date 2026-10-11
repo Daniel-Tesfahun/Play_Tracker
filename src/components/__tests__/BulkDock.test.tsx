@@ -62,6 +62,14 @@ describe('BulkDock', () => {
     expect(props.onDone).toHaveBeenCalled();
   });
 
+  it('puts the actions in a horizontal scroll row', async () => {
+    await renderDock(2).result;
+    const row = screen.getByTestId('bulk-actions');
+    expect(row.props.horizontal).toBe(true);
+    expect(screen.getByTestId('dock-bulk-reset')).toBeOnTheScreen();
+    expect(screen.getByTestId('dock-bulk-delete')).toBeOnTheScreen();
+  });
+
   it('reserves more list space than the normal dock', () => {
     expect(dockSpace(0, true)).toBe(BULK_DOCK_HEIGHT + 12 + 16);
     expect(dockSpace(0, true)).toBeGreaterThan(dockSpace(0));
