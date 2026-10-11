@@ -1,8 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router/js-tabs';
 
-import { SegmentedTabBar } from '@/components/navigation/SegmentedTabBar';
+import { SectionSwitcher } from '@/components/navigation/SectionSwitcher';
+import { SECTIONS } from '@/components/navigation/sections';
 import { usePalette } from '@/theme/usePalette';
 
 export default function TabLayout() {
@@ -10,26 +9,15 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      tabBar={(props) => <SegmentedTabBar {...props} />}
+      tabBar={(props) => <SectionSwitcher {...props} />}
       screenOptions={{
         headerShown: false,
+        animation: 'none',
         sceneStyle: { backgroundColor: c.canvas },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Gaming Zones',
-          tabBarIcon: ({ color, size }) => <Ionicons name="game-controller" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="scooters"
-        options={{
-          title: 'Scooters',
-          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="scooter" size={size} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: SECTIONS.index?.title }} />
+      <Tabs.Screen name="scooters" options={{ title: SECTIONS.scooters?.title }} />
     </Tabs>
   );
 }

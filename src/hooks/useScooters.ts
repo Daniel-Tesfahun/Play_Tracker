@@ -1,66 +1,123 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
 
 import * as repo from '@/db/scootersRepo';
 import type { Database, Scooter, ScooterDayStats } from '@/db/types';
+import { queryKeys } from '@/data/queryKeys';
+import { patchQuery, useOptimisticMutation } from '@/data/useOptimisticMutation';
+import { addAllocation } from '@/lib/timer';
 
-import { useRefreshOnFocus } from './useRefreshOnFocus';
+import { useToday } from './useToday';
 
+const EMPTY: Scooter[] = [];
+const NO_STATS: ScooterDayStats = { sessionsToday: 0, minutesToday: 0 };
+const idle = (s: Scooter): Scooter => ({ ...s, startedAt: null, allocatedMinutes: 0 });
+
+/** Scooters and today's ride stats, cached by TanStack Query; actions update the cache first. */
 export function useScooters() {
   const db: Database = useSQLiteContext();
-  const [scooters, setScooters] = useState<Scooter[]>([]);
-  const [stats, setStats] = useState<ScooterDayStats>({ sessionsToday: 0, minutesToday: 0 });
-  const [loaded, setLoaded] = useState(false);
+  const qc = useQueryClient();
+  const day = useToday();
+  const listKey = queryKeys.scooters;
+  const statsKey = queryKeys.scooterStats(day);
 
-  const reload = useCallback(async () => {
-    const [list, day] = await Promise.all([repo.listScooters(db), repo.getScooterDayStats(db)]);
-    setScooters(list);
-    setStats(day);
-    setLoaded(true);
-  }, [db]);
+  const list = useQuery({ queryKey: listKey, queryFn: () => repo.listScooters(db) });
+  const stats = useQuery({ queryKey: statsKey, queryFn: () => repo.getScooterDayStats(db, day) });
+  const scooters = list.data ?? EMPTY;
 
-  useRefreshOnFocus(reload);
+  const mapScooter = (id: number, update: (s: Scooter) => Scooter) =>
+    patchQuery<Scooter[]>(qc, listKey, (all) => all.map((s) => (s.id === id ? update(s) : s)));
 
-  const mutate = useCallback(
-    async (write: () => Promise<unknown>) => {
-      try {
-        await write();
-      } finally {
-        await reload();
-      }
+  const allocateM = useOptimisticMutation<{ id: number; minutes: number }>({
+    mutationFn: ({ id, minutes }) => repo.allocateMinutes(db, id, minutes),
+    apply: (_, { id, minutes }) =>
+      mapScooter(id, (s) => ({ ...s, allocatedMinutes: addAllocation(s.allocatedMinutes, minutes) })),
+    resync: [listKey],
+  });
+
+  const clearM = useOptimisticMutation<number>({
+    mutationFn: (id) => repo.clearAllocation(db, id),
+    apply: (_, id) => mapScooter(id, (s) => ({ ...s, allocatedMinutes: 0 })),
+    resync: [listKey],
+  });
+
+  const startM = useOptimisticMutation<{ id: number; at: number }>({
+    mutationFn: ({ id, at }) => repo.startSession(db, id, at),
+    apply: (_, { id, at }) => mapScooter(id, (s) => ({ ...s, startedAt: s.startedAt ?? at })),
+    resync: [listKey],
+  });
+
+  // Ending a ride changes today's totals, which are computed in SQL, so re-read stats after.
+  const stopM = useOptimisticMutation<{ id: number; at: number }>({
+    mutationFn: ({ id, at }) => repo.stopSession(db, id, at),
+    apply: (_, { id }) => mapScooter(id, idle),
+    refetch: () => [statsKey],
+    resync: [listKey, statsKey],
+  });
+
+  const resetM = useOptimisticMutation<number>({
+    mutationFn: (id) => repo.resetScooter(db, id),
+    apply: (_, id) => mapScooter(id, idle),
+    resync: [listKey],
+  });
+
+  const resetDayM = useOptimisticMutation<void>({
+    mutationFn: () => repo.resetScootersDay(db),
+    apply: (client) => {
+      patchQuery<Scooter[]>(client, listKey, (all) => all.map(idle));
+      patchQuery<ScooterDayStats>(client, statsKey, () => NO_STATS);
     },
-    [reload],
-  );
+    resync: [listKey, statsKey],
+  });
+
+  const renameM = useOptimisticMutation<{ id: number; name: string }>({
+    mutationFn: ({ id, name }) => repo.renameScooter(db, id, name),
+    apply: (_, { id, name }) => mapScooter(id, (s) => ({ ...s, name: name.trim() })),
+    resync: [listKey],
+  });
+
+  const removeM = useOptimisticMutation<number>({
+    mutationFn: (id) => repo.deleteScooter(db, id),
+    apply: (client, id) => patchQuery<Scooter[]>(client, listKey, (all) => all.filter((s) => s.id !== id)),
+    refetch: () => [statsKey],
+    resync: [listKey, statsKey],
+  });
+
+  const addM = useOptimisticMutation<string>({
+    mutationFn: (name) => repo.addScooter(db, name),
+    refetch: () => [listKey],
+    resync: [listKey],
+  });
 
   return {
     scooters,
-    stats,
-    loaded,
+    stats: stats.data ?? NO_STATS,
+    loaded: list.isSuccess,
     allocate: (id: number, minutes: number) => {
       void Haptics.selectionAsync();
-      return mutate(() => repo.allocateMinutes(db, id, minutes));
+      allocateM.mutate({ id, minutes });
     },
-    clearAllocation: (id: number) => mutate(() => repo.clearAllocation(db, id)),
+    clearAllocation: (id: number) => clearM.mutate(id),
     start: (id: number) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      return mutate(() => repo.startSession(db, id));
+      startM.mutate({ id, at: Date.now() });
     },
     stop: (id: number) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      return mutate(() => repo.stopSession(db, id));
+      stopM.mutate({ id, at: Date.now() });
     },
     /** Cancel without logging: clears the ride and any booked time. */
     reset: (id: number) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      return mutate(() => repo.resetScooter(db, id));
+      resetM.mutate(id);
     },
     resetDay: () => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      return mutate(() => repo.resetScootersDay(db));
+      resetDayM.mutate();
     },
-    addScooter: () => mutate(() => repo.addScooter(db, `Scooter ${scooters.length + 1}`)),
-    rename: (id: number, name: string) => mutate(() => repo.renameScooter(db, id, name)),
-    remove: (id: number) => mutate(() => repo.deleteScooter(db, id)),
+    addScooter: () => addM.mutate(`Scooter ${scooters.length + 1}`),
+    rename: (id: number, name: string) => renameM.mutate({ id, name }),
+    remove: (id: number) => removeM.mutate(id),
   };
 }

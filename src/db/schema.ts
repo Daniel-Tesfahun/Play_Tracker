@@ -1,7 +1,7 @@
 import type { Database } from './types';
 
 export const DATABASE_NAME = 'playtracker.db';
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const DEFAULT_ZONE_COUNT = 6;
 export const DEFAULT_SCOOTER_COUNT = 4;
@@ -24,6 +24,10 @@ export async function migrate(db: Database): Promise<void> {
   if (version < 2) {
     await addPlayers(db);
     version = 2;
+  }
+  if (version < 3) {
+    await renameDefaultZones(db);
+    version = 3;
   }
 
   await db.execAsync(`PRAGMA user_version = ${version}`);
@@ -74,7 +78,7 @@ async function createBaseSchema(db: Database): Promise<void> {
     for (let i = 1; i <= DEFAULT_ZONE_COUNT; i++) {
       await db.runAsync(
         'INSERT INTO zones (name, current_game, position, created_at) VALUES (?, NULL, ?, ?)',
-        `Zone ${i}`,
+        `Station ${i}`,
         i,
         now,
       );
@@ -103,5 +107,13 @@ async function addPlayers(db: Database): Promise<void> {
 
     ALTER TABLE game_plays ADD COLUMN player_id INTEGER REFERENCES zone_players(id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS idx_game_plays_player ON game_plays(player_id);
+  `);
+}
+
+/** v3: "Zone N" became "Station N". Only untouched default names change; custom names are kept. */
+async function renameDefaultZones(db: Database): Promise<void> {
+  await db.execAsync(`
+    UPDATE zones SET name = 'Station ' || substr(name, 6)
+     WHERE name GLOB 'Zone [0-9]*' AND substr(name, 6) NOT GLOB '*[^0-9]*';
   `);
 }

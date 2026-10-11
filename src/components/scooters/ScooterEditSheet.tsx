@@ -42,7 +42,7 @@ function ScooterEditForm({
       </Field>
       <Button
         label="Save"
-        variant="primary"
+        variant="scoot"
         disabled={name.trim().length === 0}
         onPress={() => {
           onRename(scooter.id, name);

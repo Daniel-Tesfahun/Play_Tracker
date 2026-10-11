@@ -1,98 +1,157 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 
 import type { Database, Zone } from '@/db/types';
 import * as repo from '@/db/zonesRepo';
+import { queryKeys } from '@/data/queryKeys';
+import { patchQuery, useOptimisticMutation } from '@/data/useOptimisticMutation';
 import { applyIncrement, nextZoneName } from '@/lib/gaming';
 
-import { useRefreshOnFocus } from './useRefreshOnFocus';
+import { useToday } from './useToday';
 
+const EMPTY: Zone[] = [];
+
+const clearCounts = (zone: Zone): Zone => ({
+  ...zone,
+  gamesToday: 0,
+  unassignedToday: 0,
+  players: zone.players.map((p) => ({ ...p, gamesToday: 0 })),
+});
+
+/** Zones for today, cached by TanStack Query; every action updates the cache before SQLite. */
 export function useZones() {
   const db: Database = useSQLiteContext();
-  const [zones, setZones] = useState<Zone[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const qc = useQueryClient();
+  const day = useToday();
+  const key = queryKeys.zones(day);
 
-  const reload = useCallback(async () => {
-    setZones(await repo.listZones(db));
-    setLoaded(true);
-  }, [db]);
+  const query = useQuery({ queryKey: key, queryFn: () => repo.listZones(db, day) });
+  const zones = query.data ?? EMPTY;
+  const patch = (update: (list: Zone[]) => Zone[]) => patchQuery<Zone[]>(qc, key, update);
+  const mapZone = (zoneId: number, update: (zone: Zone) => Zone) =>
+    patch((list) => list.map((z) => (z.id === zoneId ? update(z) : z)));
 
-  useRefreshOnFocus(reload);
+  const incrementM = useOptimisticMutation<{ zoneId: number; playerId: number | null }>({
+    mutationFn: ({ zoneId, playerId }) => repo.incrementZone(db, zoneId, Date.now(), playerId),
+    apply: (_, { zoneId, playerId }) => patch((list) => applyIncrement(list, zoneId, 1, playerId)),
+    resync: [key],
+  });
 
-  /** Runs a write, then re-reads so the UI always ends up matching the database. */
-  const mutate = useCallback(
-    async (write: () => Promise<unknown>) => {
-      try {
-        await write();
-      } finally {
-        await reload();
-      }
-    },
-    [reload],
-  );
+  const decrementPlayerM = useOptimisticMutation<{ zoneId: number; playerId: number }>({
+    mutationFn: ({ playerId }) => repo.decrementPlayer(db, playerId),
+    apply: (_, { zoneId, playerId }) => patch((list) => applyIncrement(list, zoneId, -1, playerId)),
+    resync: [key],
+  });
 
-  // Taps are optimistic and don't re-read on success, so rapid taps never flicker
-  // back to a stale count; a failed write re-syncs from the database.
-  const resyncOnError = useCallback(
-    (write: Promise<unknown>) => {
-      write.catch(() => reload());
-    },
-    [reload],
-  );
+  // Undo removes whichever play was latest, so we can't predict which player; re-read after.
+  const undoM = useOptimisticMutation<number>({
+    mutationFn: (zoneId) => repo.decrementZone(db, zoneId),
+    refetch: () => [key],
+    resync: [key],
+  });
 
-  /** +1 on a zone, credited to a player when one is given. */
-  const increment = useCallback(
-    (zoneId: number, playerId: number | null = null) => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setZones((prev) => applyIncrement(prev, zoneId, 1, playerId));
-      resyncOnError(repo.incrementZone(db, zoneId, Date.now(), playerId));
-    },
-    [db, resyncOnError],
-  );
+  const updateM = useOptimisticMutation<{ zoneId: number; name: string; currentGame: string | null }>({
+    mutationFn: ({ zoneId, ...details }) => repo.updateZone(db, zoneId, details),
+    apply: (_, { zoneId, name, currentGame }) =>
+      mapZone(zoneId, (z) => ({ ...z, name: name.trim(), currentGame: currentGame?.trim() || null })),
+    resync: [key],
+  });
 
-  const decrementPlayer = useCallback(
-    (zoneId: number, playerId: number) => {
-      void Haptics.selectionAsync();
-      setZones((prev) => applyIncrement(prev, zoneId, -1, playerId));
-      resyncOnError(repo.decrementPlayer(db, playerId));
-    },
-    [db, resyncOnError],
-  );
+  const resetM = useOptimisticMutation<number>({
+    mutationFn: (zoneId) => repo.resetZoneToday(db, zoneId),
+    apply: (_, zoneId) => mapZone(zoneId, clearCounts),
+    resync: [key],
+  });
 
-  // Zone-level undo removes whichever play was latest, so we can't predict the
-  // affected player; re-read instead of guessing.
-  const undoLast = useCallback(
-    (zoneId: number) => {
-      void Haptics.selectionAsync();
-      return mutate(() => repo.decrementZone(db, zoneId));
-    },
-    [db, mutate],
-  );
+  const resetAllM = useOptimisticMutation<void>({
+    mutationFn: () => repo.resetAllZonesToday(db),
+    apply: () => patch((list) => list.map(clearCounts)),
+    resync: [key],
+  });
 
-  const titleBreakdown = useCallback((zoneId: number) => repo.zoneTitleBreakdown(db, zoneId), [db]);
+  const deleteM = useOptimisticMutation<number>({
+    mutationFn: (zoneId) => repo.deleteZone(db, zoneId),
+    apply: (_, zoneId) => patch((list) => list.filter((z) => z.id !== zoneId)),
+    resync: [key],
+  });
+
+  // New rows need their SQLite ids, so these re-read once the write lands.
+  const addZoneM = useOptimisticMutation<string>({
+    mutationFn: (name) => repo.addZone(db, name),
+    refetch: () => [key],
+    resync: [key],
+  });
+
+  const addPlayerM = useOptimisticMutation<{ zoneId: number; name: string }>({
+    mutationFn: ({ zoneId, name }) => repo.addPlayer(db, zoneId, name),
+    refetch: () => [key],
+    resync: [key],
+  });
+
+  const renamePlayerM = useOptimisticMutation<{ playerId: number; name: string }>({
+    mutationFn: ({ playerId, name }) => repo.renamePlayer(db, playerId, name),
+    apply: (_, { playerId, name }) =>
+      patch((list) =>
+        list.map((z) => ({
+          ...z,
+          players: z.players.map((p) => (p.id === playerId ? { ...p, name: name.trim() } : p)),
+        })),
+      ),
+    resync: [key],
+  });
+
+  const removePlayerM = useOptimisticMutation<number>({
+    mutationFn: (playerId) => repo.removePlayer(db, playerId),
+    apply: (_, playerId) =>
+      patch((list) =>
+        list.map((z) => {
+          const player = z.players.find((p) => p.id === playerId);
+          if (!player) return z;
+          // Their games stay on the zone, now as unassigned.
+          return {
+            ...z,
+            players: z.players.filter((p) => p.id !== playerId),
+            unassignedToday: z.unassignedToday + player.gamesToday,
+          };
+        }),
+      ),
+    resync: [key],
+  });
+
+  const titleBreakdown = useCallback((zoneId: number) => repo.zoneTitleBreakdown(db, zoneId, day), [db, day]);
 
   return {
     zones,
-    loaded,
-    increment,
-    decrementPlayer,
-    undoLast,
-    addZone: () => mutate(() => repo.addZone(db, nextZoneName(zones))),
+    loaded: query.isSuccess,
+    increment: (zoneId: number, playerId: number | null = null) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      incrementM.mutate({ zoneId, playerId });
+    },
+    decrementPlayer: (zoneId: number, playerId: number) => {
+      void Haptics.selectionAsync();
+      decrementPlayerM.mutate({ zoneId, playerId });
+    },
+    undoLast: (zoneId: number) => {
+      void Haptics.selectionAsync();
+      undoM.mutate(zoneId);
+    },
+    addZone: () => addZoneM.mutate(nextZoneName(zones)),
     updateZone: (zoneId: number, details: { name: string; currentGame: string | null }) =>
-      mutate(() => repo.updateZone(db, zoneId, details)),
+      updateM.mutate({ zoneId, ...details }),
     resetToday: (zoneId: number) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      return mutate(() => repo.resetZoneToday(db, zoneId));
+      resetM.mutate(zoneId);
     },
     resetAllToday: () => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      return mutate(() => repo.resetAllZonesToday(db));
+      resetAllM.mutate();
     },
-    deleteZone: (zoneId: number) => mutate(() => repo.deleteZone(db, zoneId)),
-    addPlayer: (zoneId: number, name: string) => mutate(() => repo.addPlayer(db, zoneId, name)),
-    renamePlayer: (playerId: number, name: string) => mutate(() => repo.renamePlayer(db, playerId, name)),
-    removePlayer: (playerId: number) => mutate(() => repo.removePlayer(db, playerId)),
+    deleteZone: (zoneId: number) => deleteM.mutate(zoneId),
+    addPlayer: (zoneId: number, name: string) => addPlayerM.mutate({ zoneId, name }),
+    renamePlayer: (playerId: number, name: string) => renamePlayerM.mutate({ playerId, name }),
+    removePlayer: (playerId: number) => removePlayerM.mutate(playerId),
     titleBreakdown,
   };
 }

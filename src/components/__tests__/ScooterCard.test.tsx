@@ -11,7 +11,12 @@ const H24: ClockPrefs = { locale: 'en-GB', hour12: false };
 
 const idle: Scooter = { id: 7, name: 'Scooter 7', startedAt: null, allocatedMinutes: 0, position: 1 };
 
-async function renderCard(scooter: Scooter, now: number, clock: ClockPrefs = H24) {
+async function renderCard(
+  scooter: Scooter,
+  now: number,
+  clock: ClockPrefs = H24,
+  extra: { collapsed?: boolean; onToggleCollapse?: (id: number) => void } = {},
+) {
   const props = {
     onAllocate: jest.fn(),
     onClearAllocation: jest.fn(),
@@ -20,14 +25,15 @@ async function renderCard(scooter: Scooter, now: number, clock: ClockPrefs = H24
     onReset: jest.fn(),
     onEdit: jest.fn(),
   };
-  await render(<ScooterCard scooter={scooter} now={now} clock={clock} {...props} />);
+  await render(<ScooterCard scooter={scooter} now={now} clock={clock} {...extra} {...props} />);
   return props;
 }
 
 describe('ScooterCard', () => {
-  it('shows an idle badge and a start button when idle', async () => {
+  it('shows an idle badge, "Ready", and a start button when idle', async () => {
     const props = await renderCard(idle, START);
     expect(screen.getByTestId('scooter-badge-7')).toHaveTextContent('Idle');
+    expect(screen.getByTestId('scooter-time-7')).toHaveTextContent('Ready');
     await fireEvent.press(screen.getByTestId('scooter-start-7'));
     expect(props.onStart).toHaveBeenCalledWith(7);
   });
@@ -65,6 +71,12 @@ describe('ScooterCard', () => {
     expect(screen.getByText('75%')).toBeOnTheScreen();
   });
 
+  it('previews booked time before the ride starts', async () => {
+    await renderCard({ ...idle, allocatedMinutes: 45 }, START);
+    expect(screen.getByTestId('scooter-time-7')).toHaveTextContent('45:00');
+    expect(screen.getByTestId('scooter-caption-7')).toHaveTextContent(/45m booked/);
+  });
+
   it('counts up when started without an allocation', async () => {
     await renderCard({ ...idle, startedAt: START }, START + 7 * MIN + 5000);
     expect(screen.getByTestId('scooter-time-7')).toHaveTextContent('7:05');
@@ -93,5 +105,28 @@ describe('ScooterCard', () => {
     const props = await renderCard(idle, START);
     await fireEvent.press(screen.getByTestId('scooter-reset-7'));
     expect(props.onReset).not.toHaveBeenCalled();
+  });
+
+  it('collapses to name, status, live time, and one start/end action', async () => {
+    const onToggleCollapse = jest.fn();
+    const props = await renderCard({ ...idle, startedAt: START, allocatedMinutes: 30 }, START + 10 * MIN, H24, {
+      collapsed: true,
+      onToggleCollapse,
+    });
+    expect(screen.getByTestId('scooter-badge-7')).toHaveTextContent('Riding');
+    expect(screen.getByTestId('scooter-time-7')).toHaveTextContent('20:00');
+    expect(screen.queryByTestId('timer-progress')).toBeNull();
+    expect(screen.queryByTestId('preset-7-15')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('scooter-stop-7'));
+    expect(props.onStop).toHaveBeenCalledWith(7);
+    await fireEvent.press(screen.getByTestId('scooter-collapse-7'));
+    expect(onToggleCollapse).toHaveBeenCalledWith(7);
+  });
+
+  it('starts a ride from the collapsed row', async () => {
+    const props = await renderCard(idle, START, H24, { collapsed: true, onToggleCollapse: jest.fn() });
+    await fireEvent.press(screen.getByTestId('scooter-start-7'));
+    expect(props.onStart).toHaveBeenCalledWith(7);
   });
 });

@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
 import { cssInterop } from 'nativewind';
-import { Animated, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Animated, Easing, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 
 // NativeWind only wires className into core components; Animated.View needs opting in.
 cssInterop(Animated.View, { className: 'style' });
@@ -17,8 +17,8 @@ interface PressableScaleProps extends Omit<PressableProps, 'children' | 'style'>
 }
 
 /**
- * Pressable with a spring scale + opacity response. Uses the core Animated API
- * on the native driver so the feedback stays on the UI thread.
+ * Pressable with instant press feedback: a short timed shrink on touch-down
+ * and a quick spring back, both on the native driver (UI thread).
  */
 export function PressableScale({
   children,
@@ -35,16 +35,19 @@ export function PressableScale({
 }: PressableScaleProps) {
   const [progress] = useState(() => new Animated.Value(0));
 
-  const animateTo = (toValue: number) =>
-    Animated.spring(progress, {
-      toValue,
+  const pressIn = () =>
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 70,
+      easing: Easing.out(Easing.quad),
       useNativeDriver: true,
-      speed: 40,
-      bounciness: toValue === 0 ? 6 : 0,
     }).start();
 
+  const pressOut = () =>
+    Animated.spring(progress, { toValue: 0, useNativeDriver: true, speed: 50, bounciness: 6 }).start();
+
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [1, pressedScale] });
-  const opacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.85] });
+  const opacity = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] });
 
   return (
     <Animated.View
@@ -58,11 +61,11 @@ export function PressableScale({
         className={className}
         style={style}
         onPressIn={(e) => {
-          animateTo(1);
+          pressIn();
           onPressIn?.(e);
         }}
         onPressOut={(e) => {
-          animateTo(0);
+          pressOut();
           onPressOut?.(e);
         }}
       >

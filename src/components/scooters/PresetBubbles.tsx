@@ -15,13 +15,7 @@ interface PresetBubblesProps {
   canClear: boolean;
 }
 
-export function PresetBubbles({
-  scooterId,
-  allocatedMinutes,
-  onAdd,
-  onClear,
-  canClear,
-}: PresetBubblesProps) {
+export function PresetBubbles({ scooterId, allocatedMinutes, onAdd, onClear, canClear }: PresetBubblesProps) {
   const c = usePalette();
   return (
     <View className="flex-row items-center gap-2">
@@ -33,22 +27,22 @@ export function PresetBubbles({
           accessibilityRole="button"
           accessibilityLabel={`Add ${m} minutes`}
           pressedScale={0.9}
-          className="h-11 min-w-[56px] items-center justify-center rounded-full border border-line bg-elevated px-3"
+          containerStyle={{ flex: 1 }}
+          className="h-11 items-center justify-center rounded-full border border-scoot/30 bg-scootDim"
         >
-          <Text className="text-sm font-semibold text-ink">+{formatMinutes(m)}</Text>
+          <Text className="text-sm font-bold text-scoot">+{formatMinutes(m)}</Text>
         </PressableScale>
       ))}
-      <View className="flex-1" />
       {allocatedMinutes > 0 && canClear ? (
         <PressableScale
           onPress={onClear}
           accessibilityRole="button"
-          accessibilityLabel="Clear allocated time"
+          accessibilityLabel="Clear booked time"
+          testID={`preset-clear-${scooterId}`}
           pressedScale={0.9}
-          className="h-11 flex-row items-center gap-1 rounded-full px-3"
+          className="h-11 w-11 items-center justify-center rounded-full border border-line bg-elevated"
         >
-          <Text className="text-xs font-semibold text-muted">{formatMinutes(allocatedMinutes)}</Text>
-          <Ionicons name="close-circle" size={16} color={c.faint} />
+          <Ionicons name="close" size={18} color={c.muted} />
         </PressableScale>
       ) : null}
     </View>

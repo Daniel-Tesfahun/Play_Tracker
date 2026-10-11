@@ -19,7 +19,7 @@ export function AddTile({ label, onPress, minHeight = 168 }: AddTileProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
       containerStyle={{ flex: 1 }}
-      className="flex-1 items-center justify-center gap-2 rounded-2xl border border-dashed border-lineStrong"
+      className="flex-1 items-center justify-center gap-2 rounded-3xl border border-dashed border-lineStrong"
       style={{ minHeight }}
     >
       <Ionicons name="add" size={22} color={c.muted} />

@@ -27,12 +27,12 @@ export function Sheet({ visible, title, onClose, children }: SheetProps) {
           accessibilityLabel="Close"
         />
         <View
-          className="rounded-t-3xl border border-b-0 border-line bg-surface px-5 pt-3"
+          className="rounded-t-[28px] border border-b-0 border-line bg-surface px-5 pt-3"
           style={{ paddingBottom: Math.max(insets.bottom, 16) + 8 }}
         >
           <View className="mb-2 h-1 w-10 self-center rounded-full bg-lineStrong" />
           <View className="mb-3 flex-row items-center justify-between">
-            <Text className="text-lg font-semibold text-ink">{title}</Text>
+            <Text className="text-lg font-bold text-ink">{title}</Text>
             <IconButton icon="close" label="Close" onPress={onClose} />
           </View>
           {children}
@@ -57,4 +57,4 @@ export function Field({ label, children }: FieldProps) {
 }
 
 export const inputClassName =
-  'h-12 rounded-xl border border-line bg-elevated px-4 text-base text-ink';
+  'h-12 rounded-2xl border border-line bg-elevated px-4 text-base font-medium text-ink';

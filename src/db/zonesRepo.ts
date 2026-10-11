@@ -146,7 +146,7 @@ export async function addPlayer(
     zoneId,
   );
   if ((stats?.count ?? 0) >= MAX_PLAYERS_PER_ZONE) {
-    throw new Error(`A zone can have at most ${MAX_PLAYERS_PER_ZONE} players`);
+    throw new Error(`A station can have at most ${MAX_PLAYERS_PER_ZONE} players`);
   }
   const result = await db.runAsync(
     'INSERT INTO zone_players (zone_id, name, position, created_at) VALUES (?, ?, ?, ?)',

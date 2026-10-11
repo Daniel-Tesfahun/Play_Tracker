@@ -7,18 +7,22 @@ import { usePalette } from '@/theme/usePalette';
 
 import { PressableScale } from './PressableScale';
 
-type Variant = 'primary' | 'secondary' | 'danger';
+export type ButtonVariant = 'primary' | 'brand' | 'scoot' | 'go' | 'secondary' | 'danger' | 'dangerSolid';
 
-const styles: Record<Variant, { box: string; text: string; icon: keyof Palette }> = {
+const styles: Record<ButtonVariant, { box: string; text: string; icon: keyof Palette }> = {
   primary: { box: 'bg-ink', text: 'text-canvas', icon: 'canvas' },
+  brand: { box: 'bg-brand', text: 'text-onAccent', icon: 'onAccent' },
+  scoot: { box: 'bg-scoot', text: 'text-canvas', icon: 'canvas' },
+  go: { box: 'bg-neon', text: 'text-canvas', icon: 'canvas' },
   secondary: { box: 'border border-line bg-elevated', text: 'text-ink', icon: 'ink' },
-  danger: { box: 'border border-dangerDim bg-dangerDim', text: 'text-danger', icon: 'danger' },
+  danger: { box: 'border border-danger/30 bg-dangerDim', text: 'text-danger', icon: 'danger' },
+  dangerSolid: { box: 'bg-danger', text: 'text-onAccent', icon: 'onAccent' },
 };
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: Variant;
+  variant?: ButtonVariant;
   icon?: ComponentProps<typeof Ionicons>['name'];
   disabled?: boolean;
   className?: string;
@@ -43,11 +47,12 @@ export function Button({
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
       containerClassName={className}
-      className={`h-12 flex-row items-center justify-center gap-2 rounded-xl px-4 ${s.box}`}
+      className={`h-12 flex-row items-center justify-center gap-2 rounded-2xl px-4 ${s.box}`}
     >
       {icon ? <Ionicons name={icon} size={18} color={c[s.icon]} /> : null}
-      <Text className={`text-base font-semibold ${s.text}`}>{label}</Text>
+      <Text className={`text-base font-bold ${s.text}`}>{label}</Text>
     </PressableScale>
   );
 }

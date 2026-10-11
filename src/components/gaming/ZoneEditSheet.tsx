@@ -54,7 +54,7 @@ function PlayerEditRow({
         maxLength={24}
         accessibilityLabel={`Rename ${player.name}`}
       />
-      <Text className="w-16 text-right text-xs text-muted">{player.gamesToday} today</Text>
+      <Text className="w-16 text-right text-xs font-medium text-muted">{player.gamesToday} today</Text>
       <IconButton
         icon="trash-outline"
         label={`Remove ${player.name}`}
@@ -62,7 +62,7 @@ function PlayerEditRow({
         onPress={() =>
           confirmDestructive(
             'Remove player',
-            `Remove ${player.name}? Their games today stay on the zone total.`,
+            `Remove ${player.name}? Their games today stay on the station total.`,
             'Remove',
             onRemove,
           )
@@ -104,11 +104,11 @@ function ZoneEditForm({
   return (
     <Sheet visible title={zone.name} onClose={onClose}>
       <ScrollView style={{ maxHeight: 520 }} keyboardShouldPersistTaps="handled">
-        <Field label="Section name">
+        <Field label="Station name">
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder="Zone name"
+            placeholder="Station name"
             placeholderTextColor={c.faint}
             className={inputClassName}
             maxLength={32}
@@ -145,10 +145,10 @@ function ZoneEditForm({
             </Text>
             {breakdown.map((row) => (
               <View key={row.title} className="flex-row justify-between py-1">
-                <Text className="flex-1 text-sm text-muted" numberOfLines={1}>
+                <Text className="flex-1 text-sm font-medium text-muted" numberOfLines={1}>
                   {row.title}
                 </Text>
-                <Text className="text-sm font-semibold text-ink">{row.plays}</Text>
+                <Text className="text-sm font-bold text-ink">{row.plays}</Text>
               </View>
             ))}
           </View>
@@ -166,7 +166,7 @@ function ZoneEditForm({
             label="Reset today"
             icon="refresh"
             onPress={() =>
-              confirmDestructive('Reset zone', `Clear today's ${zone.gamesToday} games on ${zone.name}?`, 'Reset', () =>
+              confirmDestructive('Reset station', `Clear today's ${zone.gamesToday} games on ${zone.name}?`, 'Reset', () =>
                 onReset(zone.id),
               )
             }
@@ -176,7 +176,7 @@ function ZoneEditForm({
         </View>
         <Button
           label="Save"
-          variant="primary"
+          variant="brand"
           disabled={name.trim().length === 0}
           onPress={() => {
             onSave(zone.id, { name, currentGame: game });
@@ -185,11 +185,11 @@ function ZoneEditForm({
           className="mb-3"
         />
         <Button
-          label="Delete section"
+          label="Delete station"
           variant="danger"
           icon="trash-outline"
           onPress={() =>
-            confirmDestructive('Delete section', `Remove ${zone.name}, its players, and its history?`, 'Delete', () => {
+            confirmDestructive('Delete station', `Remove ${zone.name}, its players, and its history?`, 'Delete', () => {
               onDelete(zone.id);
               onClose();
             })

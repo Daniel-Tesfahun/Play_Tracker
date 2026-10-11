@@ -21,6 +21,8 @@ interface ScooterCardProps {
   now: number;
   /** Device locale, time zone, and 12/24h setting for the start/end clock. */
   clock?: ClockPrefs;
+  collapsed?: boolean;
+  onToggleCollapse?: (id: number) => void;
   onAllocate: (id: number, minutes: number) => void;
   onClearAllocation: (id: number) => void;
   onStart: (id: number) => void;
@@ -32,7 +34,7 @@ interface ScooterCardProps {
 function headline(phase: TimerPhase, remainingMs: number | null, elapsedMs: number, overtimeMs: number) {
   switch (phase) {
     case 'idle':
-      return remainingMs === null ? '—' : formatDuration(remainingMs);
+      return remainingMs === null ? 'Ready' : formatDuration(remainingMs);
     case 'open':
       return formatDuration(elapsedMs);
     case 'active':
@@ -45,10 +47,13 @@ function headline(phase: TimerPhase, remainingMs: number | null, elapsedMs: numb
 
 function caption(scooter: Scooter, phase: TimerPhase, elapsedMs: number, clock: ClockPrefs) {
   if (phase === 'idle') {
-    return scooter.allocatedMinutes > 0 ? 'Booked, ready to start' : 'Add time or start an open ride';
+    return scooter.allocatedMinutes > 0
+      ? `${formatMinutes(scooter.allocatedMinutes)} booked · tap Start when they ride off`
+      : 'Book time below, or start an open ride';
   }
   const started = `Started ${formatClock(scooter.startedAt ?? 0, clock)}`;
   if (phase === 'open') return `${started} · counting up`;
+  if (phase === 'expired') return `${started} · over by ${formatDuration(elapsedMs - scooter.allocatedMinutes * MINUTE)}`;
   return `${started} · ${formatDuration(elapsedMs)} of ${formatMinutes(scooter.allocatedMinutes)}`;
 }
 
@@ -56,6 +61,8 @@ function ScooterCardBase({
   scooter,
   now,
   clock = {},
+  collapsed = false,
+  onToggleCollapse,
   onAllocate,
   onClearAllocation,
   onStart,
@@ -69,6 +76,9 @@ function ScooterCardBase({
   const color = c[style.color];
   const running = scooter.startedAt !== null;
   const dirty = running || scooter.allocatedMinutes > 0;
+  const idleAndEmpty = timer.phase === 'idle' && scooter.allocatedMinutes === 0;
+  // Running: full-strength timer. Booked: dimmer countdown preview. Empty: a quiet "Ready".
+  const headlineClass = running ? 'text-6xl text-ink' : idleAndEmpty ? 'text-4xl text-faint' : 'text-6xl text-muted';
 
   // Buzz once when a ride crosses into "ending soon" or overtime.
   const lastPhase = useRef(timer.phase);
@@ -88,84 +98,143 @@ function ScooterCardBase({
         )}`
       : undefined;
 
+  const timeText = (
+    <Text
+      testID={`scooter-time-${scooter.id}`}
+      className={collapsed ? `text-2xl font-extrabold ${running ? 'text-ink' : 'text-faint'}` : `mt-3 font-extrabold ${headlineClass}`}
+      style={{ fontVariant: ['tabular-nums'], color: timer.phase === 'expired' ? color : undefined }}
+    >
+      {headline(timer.phase, timer.remainingMs, timer.elapsedMs, timer.overtimeMs)}
+    </Text>
+  );
+
+  const badge = (
+    <View testID={`scooter-badge-${scooter.id}`} className={`self-start rounded-full px-2.5 py-1 ${style.badge}`}>
+      <Text className={`text-[10px] font-extrabold uppercase tracking-wider ${style.badgeText}`}>{style.label}</Text>
+    </View>
+  );
+
   return (
-    <View testID={`scooter-card-${scooter.id}`} className={`flex-1 rounded-2xl border bg-surface p-4 ${style.border}`}>
-      <PresetBubbles
-        scooterId={scooter.id}
-        allocatedMinutes={scooter.allocatedMinutes}
-        onAdd={(m) => onAllocate(scooter.id, m)}
-        onClear={() => onClearAllocation(scooter.id)}
-        canClear={!running}
-      />
+    <View
+      testID={`scooter-card-${scooter.id}`}
+      className={`flex-1 overflow-hidden rounded-3xl border bg-surface ${style.border}`}
+    >
+      <View className={`h-1 ${style.strip}`} />
 
-      <View className="mt-4 flex-row items-center justify-between">
-        <View className="flex-1 flex-row items-center gap-2.5">
-          <View className="h-10 w-10 items-center justify-center rounded-xl bg-elevated">
-            <MaterialCommunityIcons name="scooter" size={20} color={color} />
+      <View className={collapsed ? 'px-4 py-3' : 'p-4 pt-3'}>
+        <View className="flex-row items-center gap-3">
+          <View className={`h-11 w-11 items-center justify-center rounded-2xl ${running ? style.badge : 'bg-scootDim'}`}>
+            <MaterialCommunityIcons name="scooter" size={22} color={running ? color : c.scoot} />
           </View>
-          <Text className="flex-1 text-base font-semibold text-ink" numberOfLines={1}>
-            {scooter.name}
-          </Text>
-        </View>
-        <View testID={`scooter-badge-${scooter.id}`} className={`rounded-full px-2.5 py-1 ${style.badge}`}>
-          <Text className={`text-[11px] font-bold uppercase tracking-wider ${style.badgeText}`}>{style.label}</Text>
-        </View>
-        <View className="-mr-2 ml-1">
-          <IconButton icon="ellipsis-horizontal" label={`Edit ${scooter.name}`} onPress={() => onEdit(scooter)} />
-        </View>
-      </View>
+          <View className="flex-1 gap-1">
+            <Text className="text-base font-bold text-ink" numberOfLines={1}>
+              {scooter.name}
+            </Text>
+            {badge}
+          </View>
 
-      <Text
-        testID={`scooter-time-${scooter.id}`}
-        className={`mt-3 text-5xl font-bold tracking-tighter ${running ? 'text-ink' : 'text-faint'}`}
-        style={{ fontVariant: ['tabular-nums'], color: timer.phase === 'expired' ? color : undefined }}
-      >
-        {headline(timer.phase, timer.remainingMs, timer.elapsedMs, timer.overtimeMs)}
-      </Text>
-      <Text testID={`scooter-caption-${scooter.id}`} className="mt-0.5 text-xs text-muted" numberOfLines={1}>
-        {caption(scooter, timer.phase, timer.elapsedMs, clock)}
-      </Text>
-
-      {scooter.allocatedMinutes > 0 ? (
-        <View className="mt-4">
-          <TimerProgress
-            progress={timer.progress}
-            color={color}
-            milestonesReached={timer.milestonesReached}
-            endLabel={endsAt}
-          />
+          {collapsed ? (
+            <>
+              {timeText}
+              {running ? (
+                <IconButton
+                  icon="stop"
+                  label={`End ride on ${scooter.name}`}
+                  variant="filled"
+                  color={timer.phase === 'expired' ? c.danger : c.ink}
+                  onPress={() => onStop(scooter.id)}
+                  testID={`scooter-stop-${scooter.id}`}
+                />
+              ) : (
+                <IconButton
+                  icon="play"
+                  label={`Start ride on ${scooter.name}`}
+                  variant="filled"
+                  color={c.neon}
+                  onPress={() => onStart(scooter.id)}
+                  testID={`scooter-start-${scooter.id}`}
+                />
+              )}
+            </>
+          ) : (
+            <IconButton icon="ellipsis-horizontal" label={`Edit ${scooter.name}`} onPress={() => onEdit(scooter)} />
+          )}
+          {onToggleCollapse ? (
+            <View className="-mr-2">
+              <IconButton
+                icon={collapsed ? 'chevron-down' : 'chevron-up'}
+                label={collapsed ? `Expand ${scooter.name}` : `Collapse ${scooter.name}`}
+                onPress={() => onToggleCollapse(scooter.id)}
+                testID={`scooter-collapse-${scooter.id}`}
+              />
+            </View>
+          ) : null}
         </View>
-      ) : null}
 
-      <View className="mt-4 flex-row gap-3">
-        {running ? (
-          <Button
-            label="End ride"
-            icon="stop"
-            variant={timer.phase === 'expired' ? 'danger' : 'secondary'}
-            onPress={() => onStop(scooter.id)}
-            testID={`scooter-stop-${scooter.id}`}
-            className="flex-1"
-          />
-        ) : (
-          <Button
-            label="Start ride"
-            icon="play"
-            variant="primary"
-            onPress={() => onStart(scooter.id)}
-            testID={`scooter-start-${scooter.id}`}
-            className="flex-1"
-          />
+        {collapsed ? null : (
+          <>
+            {timeText}
+            <Text
+              testID={`scooter-caption-${scooter.id}`}
+              className="mt-0.5 text-xs font-medium text-muted"
+              numberOfLines={1}
+            >
+              {caption(scooter, timer.phase, timer.elapsedMs, clock)}
+            </Text>
+
+            {scooter.allocatedMinutes > 0 ? (
+              <View className="mt-4">
+                <TimerProgress
+                  progress={timer.progress}
+                  color={running ? color : c.scoot}
+                  milestonesReached={timer.milestonesReached}
+                  endLabel={endsAt}
+                />
+              </View>
+            ) : null}
+
+            <View className="mt-4">
+              <PresetBubbles
+                scooterId={scooter.id}
+                allocatedMinutes={scooter.allocatedMinutes}
+                onAdd={(m) => onAllocate(scooter.id, m)}
+                onClear={() => onClearAllocation(scooter.id)}
+                canClear={!running}
+              />
+            </View>
+
+            <View className="mt-3 flex-row gap-3">
+              {running ? (
+                <Button
+                  label="End ride"
+                  icon="stop"
+                  variant={timer.phase === 'expired' ? 'dangerSolid' : 'secondary'}
+                  onPress={() => onStop(scooter.id)}
+                  testID={`scooter-stop-${scooter.id}`}
+                  className="flex-1"
+                />
+              ) : (
+                <Button
+                  label="Start ride"
+                  icon="play"
+                  variant="go"
+                  onPress={() => onStart(scooter.id)}
+                  testID={`scooter-start-${scooter.id}`}
+                  className="flex-1"
+                />
+              )}
+              <IconButton
+                icon="refresh"
+                label={running ? `Cancel ride on ${scooter.name} without saving` : `Reset ${scooter.name}`}
+                variant="filled"
+                size="lg"
+                onPress={() => onReset(scooter)}
+                testID={`scooter-reset-${scooter.id}`}
+                disabled={!dirty}
+              />
+            </View>
+          </>
         )}
-        <IconButton
-          icon="refresh"
-          label={running ? `Cancel ride on ${scooter.name} without saving` : `Reset ${scooter.name}`}
-          variant="filled"
-          size="lg"
-          onPress={() => onReset(scooter)}
-          testID={`scooter-reset-${scooter.id}`}
-          disabled={!dirty}
-        />
       </View>
     </View>
   );

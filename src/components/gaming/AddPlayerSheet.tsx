@@ -52,15 +52,15 @@ function AddPlayerForm({ zone, onClose, onAdd }: AddPlayerSheetProps & { zone: Z
         <View className="mb-4 flex-row flex-wrap gap-2">
           {zone.players.map((p) => (
             <View key={p.id} className="rounded-full border border-line bg-elevated px-3 py-1.5">
-              <Text className="text-sm text-ink">{p.name}</Text>
+              <Text className="text-sm font-semibold text-ink">{p.name}</Text>
             </View>
           ))}
         </View>
       ) : null}
       {full ? (
-        <Text className="mb-3 text-xs text-amber">Max {MAX_PLAYERS_PER_ZONE} players per zone.</Text>
+        <Text className="mb-3 text-xs font-semibold text-amber">Max {MAX_PLAYERS_PER_ZONE} players per station.</Text>
       ) : null}
-      <Button label="Add player" variant="primary" icon="person-add" disabled={!valid} onPress={submit} className="mb-3" />
+      <Button label="Add player" variant="brand" icon="person-add" disabled={!valid} onPress={submit} className="mb-3" />
       <Button label="Done" onPress={onClose} />
     </Sheet>
   );

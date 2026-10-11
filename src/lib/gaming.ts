@@ -68,10 +68,10 @@ export function zoneShare(zone: Zone, totalGames: number): number {
   return totalGames === 0 ? 0 : zone.gamesToday / totalGames;
 }
 
-/** Picks the lowest "Zone N" name not already taken, so deleted numbers get reused. */
+/** Picks the lowest "Station N" name not already taken, so deleted numbers get reused. */
 export function nextZoneName(zones: readonly Pick<Zone, 'name'>[]): string {
   const taken = new Set(zones.map((z) => z.name.trim().toLowerCase()));
   let n = 1;
-  while (taken.has(`zone ${n}`)) n++;
-  return `Zone ${n}`;
+  while (taken.has(`station ${n}`)) n++;
+  return `Station ${n}`;
 }

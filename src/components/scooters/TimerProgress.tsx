@@ -23,20 +23,16 @@ export function TimerProgress({ progress, color, milestonesReached, endLabel }: 
       testID="timer-progress"
     >
       <View className="mb-2 flex-row items-baseline justify-between">
-        <Text className="text-sm font-semibold text-ink" style={{ fontVariant: ['tabular-nums'] }}>
+        <Text className="text-sm font-extrabold" style={{ color, fontVariant: ['tabular-nums'] }}>
           {pct}%
         </Text>
-        {endLabel ? <Text className="text-xs text-muted">{endLabel}</Text> : null}
+        {endLabel ? <Text className="text-xs font-semibold text-muted">{endLabel}</Text> : null}
       </View>
 
-      <View className="h-4 overflow-hidden rounded-full bg-elevated">
+      <View className="h-5 overflow-hidden rounded-full bg-elevated">
         <View className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
         {inner.map((m) => (
-          <View
-            key={m}
-            className="absolute bottom-0 top-0 w-0.5 bg-canvas/70"
-            style={{ left: `${m * 100}%` }}
-          />
+          <View key={m} className="absolute bottom-0 top-0 w-0.5 bg-surface/80" style={{ left: `${m * 100}%` }} />
         ))}
       </View>
 
@@ -46,7 +42,7 @@ export function TimerProgress({ progress, color, milestonesReached, endLabel }: 
           return (
             <Text
               key={m}
-              className={`absolute w-10 text-center text-[11px] ${reached ? 'font-semibold' : 'text-faint'}`}
+              className={`absolute w-10 text-center text-[11px] ${reached ? 'font-bold' : 'font-medium text-faint'}`}
               style={{ left: `${m * 100}%`, marginLeft: -20, color: reached ? color : undefined }}
             >
               {m * 100}%

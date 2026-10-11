@@ -2,7 +2,7 @@ import type { Player, Zone } from '@/db/types';
 
 import { applyIncrement, nextZoneName, playerShare, summarizeZones, zoneShare } from '../gaming';
 
-const zone = (id: number, gamesToday: number, name = `Zone ${id}`): Zone => ({
+const zone = (id: number, gamesToday: number, name = `Station ${id}`): Zone => ({
   id,
   name,
   currentGame: null,
@@ -114,7 +114,7 @@ describe('summarizeZones', () => {
       totalGames: 11,
       activeZones: 2,
       zoneCount: 3,
-      topZone: { id: 3, name: 'Zone 3', gamesToday: 7 },
+      topZone: { id: 3, name: 'Station 3', gamesToday: 7 },
     });
   });
 
@@ -137,12 +137,12 @@ describe('zoneShare', () => {
 
 describe('nextZoneName', () => {
   it('fills the lowest free number', () => {
-    expect(nextZoneName([])).toBe('Zone 1');
-    expect(nextZoneName([zone(1, 0), zone(2, 0)])).toBe('Zone 3');
-    expect(nextZoneName([zone(1, 0), zone(3, 0)])).toBe('Zone 2');
+    expect(nextZoneName([])).toBe('Station 1');
+    expect(nextZoneName([zone(1, 0), zone(2, 0)])).toBe('Station 3');
+    expect(nextZoneName([zone(1, 0), zone(3, 0)])).toBe('Station 2');
   });
 
   it('ignores custom-named zones', () => {
-    expect(nextZoneName([zone(1, 0, 'VIP Lounge')])).toBe('Zone 1');
+    expect(nextZoneName([zone(1, 0, 'VIP Lounge')])).toBe('Station 1');
   });
 });

@@ -1,6 +1,6 @@
 # PlayTracker
 
-Offline tracker for a game zone house: count games played on each PlayStation/TV section and time scooter rentals. All data stays on the device in SQLite. There is no backend.
+Offline tracker for a game house: count games played on each PlayStation station (one PS + one TV) and time scooter rentals. All data stays on the device in SQLite. There is no backend.
 
 ## Stack
 
@@ -11,6 +11,9 @@ Offline tracker for a game zone house: count games played on each PlayStation/TV
 | Language | TypeScript (strict, `noUncheckedIndexedAccess`) |
 | Styling | NativeWind 4 + Tailwind CSS 3 |
 | Storage | `expo-sqlite` (local, offline) |
+| Data | TanStack Query (cache + optimistic updates over SQLite) |
+| Lists | FlashList v2 (virtualized, recycled rows) |
+| Font | Plus Jakarta Sans |
 | Tests | Jest (`jest-expo`) + React Native Testing Library 14, `sql.js` for DB tests |
 
 ## Getting started
@@ -48,8 +51,8 @@ src/
   app/                    # Expo Router routes (screens only)
     _layout.tsx           # SQLiteProvider + migrations, root stack
     (tabs)/
-      _layout.tsx         # Tabs with the segmented switcher
-      index.tsx           # Gaming Zones
+      _layout.tsx         # Tabs with the confirm-to-switch section bar
+      index.tsx           # PS (stations)
       scooters.tsx        # Scooters
   components/
     ui/                   # PressableScale, Button, IconButton, Sheet, StatTile, ...
@@ -70,11 +73,15 @@ src/
 
 ## How it works
 
-**Navigation**: one segmented switch at the bottom flips between Gaming Zones and Scooters, with the selected side highlighted. Each screen header has a light/dark toggle; the choice is saved on the device.
+**Navigation**: the bottom bar shows only the section you're in (**PS** or **Scooters**). Tap it to switch; a confirmation sheet makes sure it's intentional. Each screen header has a light/dark toggle, saved on the device.
 
-**Gaming Zones**: each section is one PS + TV. Tapping a card (or its `+1` button) logs a game (a row in `game_plays` tagged with the current title and the local day), so "today" counts reset at midnight on their own and history is kept. Each card has undo and reset right on it, and **Reset day** above the list clears every zone at once.
+**Speed**: every action updates TanStack Query's cache on the same frame as the tap and writes to SQLite in the background (if a write fails, the screen re-reads from SQLite). Lists use FlashList, and React Compiler memoizes components.
 
-Players are optional: add names to a zone and each one gets its own `−`/`+` counter. The zone total is the sum of all players plus any games not credited to a player. Removing a player keeps their games on the zone total. Long-press or `…` opens the editor: rename, game title, players, undo, reset, delete.
+**Collapsing**: every card collapses to a single row (count and +1, or live time and Start/End). The list header has Collapse/Expand all. Collapsed state is remembered per card.
+
+**PS**: each station is one PS + TV. Tapping a card (or its `+1` button) logs a game (a row in `game_plays` tagged with the current title and the local day), so "today" counts reset at midnight on their own and history is kept. Each card has undo and reset right on it, and **Reset day** above the list clears every station at once.
+
+Players are optional: add names to a station and each one gets its own `−`/`+` counter. The station total is the sum of all players plus any games not credited to a player. Removing a player keeps their games on the station total. Long-press or `…` opens the editor: rename, game title, players, undo, reset, delete.
 
 **Scooters**: the `+15m / +30m / +60m` bubbles stack minutes, either before a ride (pre-booking) or during one (extending). Start stamps the current time. With minutes booked the timer counts down. With none it counts up. Card states:
 

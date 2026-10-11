@@ -34,8 +34,10 @@ beforeEach(async () => {
 });
 
 describe('migrate', () => {
-  it('seeds default zones and scooters on first run', async () => {
-    expect(await listZones(db)).toHaveLength(DEFAULT_ZONE_COUNT);
+  it('seeds default stations and scooters on first run', async () => {
+    const zones = await listZones(db);
+    expect(zones).toHaveLength(DEFAULT_ZONE_COUNT);
+    expect(zones[0]?.name).toBe('Station 1');
     const scooters = await db.getAllAsync('SELECT id FROM scooters');
     expect(scooters).toHaveLength(DEFAULT_SCOOTER_COUNT);
   });
@@ -61,6 +63,8 @@ describe('migrate', () => {
         scooter_id INTEGER NOT NULL REFERENCES scooters(id) ON DELETE CASCADE, day TEXT NOT NULL,
         started_at INTEGER NOT NULL, ended_at INTEGER NOT NULL, allocated_minutes INTEGER NOT NULL);
       INSERT INTO zones (name, position, created_at) VALUES ('Zone 1', 1, 0);
+      INSERT INTO zones (name, position, created_at) VALUES ('VIP Zone', 2, 0);
+      INSERT INTO zones (name, position, created_at) VALUES ('Zone 12b', 3, 0);
       INSERT INTO game_plays (zone_id, game_title, day, played_at)
         VALUES (1, 'Tekken 8', '${dayKey(TODAY)}', ${TODAY});
       PRAGMA user_version = 1;
@@ -72,6 +76,8 @@ describe('migrate', () => {
     expect(version?.user_version).toBe(SCHEMA_VERSION);
     const [zone] = await listZones(old, dayKey(TODAY));
     expect(zone).toMatchObject({ gamesToday: 1, unassignedToday: 1, players: [] });
+    // v3 renamed the untouched default name, but left custom names alone.
+    expect((await listZones(old, dayKey(TODAY))).map((z) => z.name)).toEqual(['Station 1', 'VIP Zone', 'Zone 12b']);
 
     const playerId = await addPlayer(old, 1, 'Abel', TODAY);
     await incrementZone(old, 1, TODAY + 1, playerId);

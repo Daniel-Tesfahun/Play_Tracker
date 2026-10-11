@@ -138,6 +138,50 @@ describe('ZoneCard', () => {
     expect(screen.getByLabelText('Zone 1, 0 games today')).toBeOnTheScreen();
   });
 
+  it('collapses to a compact row that can still log games', async () => {
+    const onToggleCollapse = jest.fn();
+    await render(
+      <ZoneCard
+        zone={withPlayers}
+        share={0}
+        collapsed
+        onToggleCollapse={onToggleCollapse}
+        onIncrement={noop}
+        onDecrementPlayer={noop}
+        onUndo={noop}
+        onReset={noop}
+        onAddPlayer={noop}
+        onEdit={noop}
+      />,
+    );
+    // Count, +1, and the player summary stay; player rows and undo/reset are hidden.
+    expect(screen.getByTestId('zone-count-1')).toHaveTextContent('3');
+    expect(screen.getByTestId('zone-plus-1')).toBeOnTheScreen();
+    expect(screen.getByText('EA FC 26 · 2 players')).toBeOnTheScreen();
+    expect(screen.queryByTestId('player-row-10')).toBeNull();
+    expect(screen.queryByTestId('zone-undo-1')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('zone-collapse-1'));
+    expect(onToggleCollapse).toHaveBeenCalledWith(1);
+  });
+
+  it('labels the collapse button for screen readers', async () => {
+    await render(
+      <ZoneCard
+        zone={baseZone}
+        share={0}
+        onToggleCollapse={noop}
+        onIncrement={noop}
+        onDecrementPlayer={noop}
+        onUndo={noop}
+        onReset={noop}
+        onAddPlayer={noop}
+        onEdit={noop}
+      />,
+    );
+    expect(screen.getByLabelText('Collapse Zone 1')).toBeOnTheScreen();
+  });
+
   it('falls back when no game title is set', async () => {
     await render(
       <ZoneCard

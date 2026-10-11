@@ -12,7 +12,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0A0A0B",
+        "backgroundColor": "#0B0D16",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -30,12 +30,21 @@
       "expo-sqlite",
       "expo-font",
       "expo-asset",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0D16",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ]
     ],
     "scheme": "playtracker",
-    "backgroundColor": "#0A0A0B",
+    "backgroundColor": "#0B0D16",
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     },
     "extra": {
       "eas": {

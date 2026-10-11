@@ -15,7 +15,7 @@ export function ScreenHeader({ eyebrow, title, actions }: ScreenHeaderProps) {
         <Text className="text-xs font-semibold uppercase tracking-widest text-faint" numberOfLines={1}>
           {eyebrow}
         </Text>
-        <Text className="mt-1 text-3xl font-bold tracking-tight text-ink" numberOfLines={1}>
+        <Text className="mt-1 text-[32px] font-extrabold tracking-tight text-ink" numberOfLines={1}>
           {title}
         </Text>
       </View>

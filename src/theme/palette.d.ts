@@ -9,6 +9,10 @@ export interface Palette {
   readonly ink: string;
   readonly muted: string;
   readonly faint: string;
+  readonly brand: string;
+  readonly brandDim: string;
+  readonly scoot: string;
+  readonly scootDim: string;
   readonly neon: string;
   readonly neonDim: string;
   readonly amber: string;
@@ -16,9 +20,14 @@ export interface Palette {
   readonly danger: string;
   readonly dangerDim: string;
   readonly idle: string;
+  readonly onAccent: string;
 }
 
+export type GradientStops = readonly [string, string];
+
 export declare const themes: Record<ColorScheme, Palette>;
+export declare const gradients: Record<ColorScheme, { zones: GradientStops; scooters: GradientStops }>;
+export declare const playerColors: Record<ColorScheme, readonly string[]>;
 export declare const tokens: (keyof Palette)[];
 export declare function hexToChannels(hex: string): string;
 export declare function cssVariables(scheme: ColorScheme): Record<`--color-${string}`, string>;
