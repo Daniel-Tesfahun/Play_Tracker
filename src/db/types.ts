@@ -45,6 +45,10 @@ export interface Scooter {
   startedAt: number | null;
   /** Minutes pre-allocated via the quick-add bubbles; 0 means open-ended (count up). */
   allocatedMinutes: number;
+  /** Epoch ms when the current pause began; null when not paused. */
+  pausedAt: number | null;
+  /** Total ms of finished pauses during this ride. */
+  pausedMs: number;
   position: number;
 }
 

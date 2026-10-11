@@ -13,9 +13,11 @@ import {
   deleteScooter,
   getScooterDayStats,
   listScooters,
+  pauseSession,
   renameScooter,
   resetScooter,
   resetScootersDay,
+  resumeSession,
   startSession,
   stopSession,
 } from '../scootersRepo';
@@ -40,6 +42,8 @@ describe('scooters repository', () => {
       name: 'Scooter X',
       startedAt: null,
       allocatedMinutes: 0,
+      pausedAt: null,
+      pausedMs: 0,
     });
   });
 
@@ -145,5 +149,62 @@ describe('scooters repository', () => {
     expect(all.every((s) => s.startedAt === null && s.allocatedMinutes === 0)).toBe(true);
     expect((await getScooterDayStats(db, dayKey(T0))).sessionsToday).toBe(0);
     expect((await getScooterDayStats(db, dayKey(YESTERDAY))).sessionsToday).toBe(1);
+  });
+
+  it('pauses and resumes, banking the paused time', async () => {
+    await allocateMinutes(db, 1, 30);
+    await startSession(db, 1, T0);
+    await pauseSession(db, 1, T0 + 10 * MIN);
+    expect(await scooter(1)).toMatchObject({ pausedAt: T0 + 10 * MIN, pausedMs: 0 });
+
+    // Pausing twice keeps the original pause time.
+    await pauseSession(db, 1, T0 + 12 * MIN);
+    expect((await scooter(1))?.pausedAt).toBe(T0 + 10 * MIN);
+
+    await resumeSession(db, 1, T0 + 15 * MIN);
+    expect(await scooter(1)).toMatchObject({ pausedAt: null, pausedMs: 5 * MIN, startedAt: T0 });
+  });
+
+  it('ignores pause on an idle scooter and resume when not paused', async () => {
+    await pauseSession(db, 1, T0);
+    expect((await scooter(1))?.pausedAt).toBeNull();
+    await startSession(db, 1, T0);
+    await resumeSession(db, 1, T0 + MIN);
+    expect((await scooter(1))?.pausedMs).toBe(0);
+  });
+
+  it('bills only ridden time, across several pauses', async () => {
+    await startSession(db, 1, T0);
+    await pauseSession(db, 1, T0 + 10 * MIN);
+    await resumeSession(db, 1, T0 + 15 * MIN);
+    await pauseSession(db, 1, T0 + 20 * MIN);
+    await resumeSession(db, 1, T0 + 30 * MIN);
+    const billed = await stopSession(db, 1, T0 + 40 * MIN);
+
+    // 40 min on the clock, 15 min paused.
+    expect(billed).toBe(25);
+    expect(await getScooterDayStats(db, dayKey(T0))).toEqual({ sessionsToday: 1, minutesToday: 25 });
+  });
+
+  it('can end a ride while it is paused', async () => {
+    await startSession(db, 1, T0);
+    await pauseSession(db, 1, T0 + 12 * MIN);
+    const billed = await stopSession(db, 1, T0 + 50 * MIN);
+    expect(billed).toBe(12);
+    expect(await scooter(1)).toMatchObject({ startedAt: null, pausedAt: null, pausedMs: 0 });
+  });
+
+  it('a new ride starts with a clean pause record', async () => {
+    await startSession(db, 1, T0);
+    await pauseSession(db, 1, T0 + MIN);
+    await resetScooter(db, 1);
+    await startSession(db, 1, T0 + 10 * MIN);
+    expect(await scooter(1)).toMatchObject({ startedAt: T0 + 10 * MIN, pausedAt: null, pausedMs: 0 });
+  });
+
+  it('adds custom minutes on top of presets', async () => {
+    await allocateMinutes(db, 1, 15);
+    await allocateMinutes(db, 1, 25);
+    expect((await scooter(1))?.allocatedMinutes).toBe(40);
   });
 });

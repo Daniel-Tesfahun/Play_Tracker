@@ -26,6 +26,25 @@ export interface TimerState {
   progress: number;
   /** Milestones from MILESTONES that have been passed. */
   milestonesReached: number[];
+  /** Running but on hold: the clock is frozen at the moment of pausing. */
+  paused: boolean;
+}
+
+/** Pause bookkeeping for a ride: when the current pause began, and paused time so far. */
+export interface PauseState {
+  pausedAt: number | null;
+  pausedMs: number;
+}
+
+const NO_PAUSE: PauseState = { pausedAt: null, pausedMs: 0 };
+
+/**
+ * Ride time that counts: wall time since the start, minus finished pauses,
+ * minus the pause in progress (if any). Never negative, even if the clock moves back.
+ */
+export function activeElapsedMs(startedAt: number, now: number, pause: PauseState = NO_PAUSE): number {
+  const frozenAt = pause.pausedAt ?? now;
+  return Math.max(0, frozenAt - startedAt - pause.pausedMs);
 }
 
 export function warningThresholdMs(allocatedMinutes: number): number {
@@ -36,6 +55,7 @@ export function computeTimerState(
   startedAt: number | null,
   allocatedMinutes: number,
   now: number,
+  pause: PauseState = NO_PAUSE,
 ): TimerState {
   if (startedAt === null) {
     return {
@@ -45,11 +65,12 @@ export function computeTimerState(
       overtimeMs: 0,
       progress: 0,
       milestonesReached: [],
+      paused: false,
     };
   }
 
-  // A clock change on the device could put "now" before the start; never show negative time.
-  const elapsedMs = Math.max(0, now - startedAt);
+  const paused = pause.pausedAt !== null;
+  const elapsedMs = activeElapsedMs(startedAt, now, pause);
 
   if (allocatedMinutes <= 0) {
     return {
@@ -59,6 +80,7 @@ export function computeTimerState(
       overtimeMs: 0,
       progress: 0,
       milestonesReached: [],
+      paused,
     };
   }
 
@@ -78,7 +100,19 @@ export function computeTimerState(
     overtimeMs: Math.max(0, -remainingMs),
     progress,
     milestonesReached: MILESTONES.filter((m) => progress >= m),
+    paused,
   };
+}
+
+/** Bounds for minutes typed into the custom-time sheet. */
+export const MIN_CUSTOM_MINUTES = 1;
+
+/** Parses typed minutes; null unless it's a whole number from 1 to MAX_ALLOCATED_MINUTES. */
+export function parseCustomMinutes(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return n >= MIN_CUSTOM_MINUTES && n <= MAX_ALLOCATED_MINUTES ? n : null;
 }
 
 /** Adds preset minutes to an allocation, capped so a mis-tap can't book a scooter for days. */

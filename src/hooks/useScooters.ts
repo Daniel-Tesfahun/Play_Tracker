@@ -12,7 +12,7 @@ import { useToday } from './useToday';
 
 const EMPTY: Scooter[] = [];
 const NO_STATS: ScooterDayStats = { sessionsToday: 0, minutesToday: 0 };
-const idle = (s: Scooter): Scooter => ({ ...s, startedAt: null, allocatedMinutes: 0 });
+const idle = (s: Scooter): Scooter => ({ ...s, startedAt: null, allocatedMinutes: 0, pausedAt: null, pausedMs: 0 });
 
 /** Scooters and today's ride stats, cached by TanStack Query; actions update the cache first. */
 export function useScooters() {
@@ -44,7 +44,24 @@ export function useScooters() {
 
   const startM = useOptimisticMutation<{ id: number; at: number }>({
     mutationFn: ({ id, at }) => repo.startSession(db, id, at),
-    apply: (_, { id, at }) => mapScooter(id, (s) => ({ ...s, startedAt: s.startedAt ?? at })),
+    apply: (_, { id, at }) =>
+      mapScooter(id, (s) => (s.startedAt !== null ? s : { ...s, startedAt: at, pausedAt: null, pausedMs: 0 })),
+    resync: [listKey],
+  });
+
+  const pauseM = useOptimisticMutation<{ id: number; at: number }>({
+    mutationFn: ({ id, at }) => repo.pauseSession(db, id, at),
+    apply: (_, { id, at }) =>
+      mapScooter(id, (s) => (s.startedAt === null || s.pausedAt !== null ? s : { ...s, pausedAt: at })),
+    resync: [listKey],
+  });
+
+  const resumeM = useOptimisticMutation<{ id: number; at: number }>({
+    mutationFn: ({ id, at }) => repo.resumeSession(db, id, at),
+    apply: (_, { id, at }) =>
+      mapScooter(id, (s) =>
+        s.pausedAt === null ? s : { ...s, pausedAt: null, pausedMs: s.pausedMs + Math.max(0, at - s.pausedAt) },
+      ),
     resync: [listKey],
   });
 
@@ -102,6 +119,14 @@ export function useScooters() {
     start: (id: number) => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       startM.mutate({ id, at: Date.now() });
+    },
+    pause: (id: number) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      pauseM.mutate({ id, at: Date.now() });
+    },
+    resume: (id: number) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      resumeM.mutate({ id, at: Date.now() });
     },
     stop: (id: number) => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

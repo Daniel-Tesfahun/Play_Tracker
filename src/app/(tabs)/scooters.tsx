@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CustomMinutesSheet } from '@/components/scooters/CustomMinutesSheet';
 import { ScooterCard } from '@/components/scooters/ScooterCard';
 import { ScooterEditSheet } from '@/components/scooters/ScooterEditSheet';
 import { AddTile } from '@/components/ui/AddTile';
@@ -36,14 +37,19 @@ export default function ScootersScreen() {
   const listRef = useRef<FlashListRef<Row>>(null);
   const collapse = useCollapsed('scooters', () => listRef.current?.prepareForLayoutAnimationRender());
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [customFor, setCustomFor] = useState<number | null>(null);
 
-  const anyRunning = s.scooters.some((sc) => sc.startedAt !== null);
+  // Paused rides don't need a ticking clock.
+  const anyRunning = s.scooters.some((sc) => sc.startedAt !== null && sc.pausedAt === null);
   // Tick every second while a ride runs; otherwise just keep the header clock current.
   const now = useNow(true, anyRunning ? 1000 : 15_000);
 
   const riding = s.scooters.filter((sc) => sc.startedAt !== null).length;
+  const pausedCount = s.scooters.filter((sc) => sc.pausedAt !== null).length;
   const overtime = s.scooters.filter(
-    (sc) => computeTimerState(sc.startedAt, sc.allocatedMinutes, now).phase === 'expired',
+    (sc) =>
+      computeTimerState(sc.startedAt, sc.allocatedMinutes, now, { pausedAt: sc.pausedAt, pausedMs: sc.pausedMs })
+        .phase === 'expired',
   ).length;
   const busy = riding > 0 || s.scooters.some((sc) => sc.allocatedMinutes > 0);
 
@@ -51,6 +57,7 @@ export default function ScootersScreen() {
   const ids = s.scooters.map((sc) => sc.id);
   const allCollapsed = collapse.allCollapsed(ids);
   const editing = s.scooters.find((sc) => sc.id === editingId) ?? null;
+  const customScooter = s.scooters.find((sc) => sc.id === customFor) ?? null;
 
   const zoneName = formatTimeZoneName(now, clock);
   const eyebrow = `Local time ${formatClock(now, clock)}${zoneName ? ` · ${zoneName}` : ''}`;
@@ -91,7 +98,15 @@ export default function ScootersScreen() {
       <HeroCard
         label="Riding now"
         value={`${riding}/${s.scooters.length}`}
-        caption={overtime > 0 ? `${overtime} in overtime` : riding > 0 ? 'on the road' : 'all scooters parked'}
+        caption={
+          overtime > 0
+            ? `${overtime} in overtime`
+            : pausedCount > 0
+              ? `${pausedCount} paused`
+              : riding > 0
+                ? 'on the road'
+                : 'all scooters parked'
+        }
         colors={gradients.scooters}
         testID="scooters-hero"
       >
@@ -142,6 +157,9 @@ export default function ScootersScreen() {
                     onClearAllocation={s.clearAllocation}
                     onStart={s.start}
                     onStop={s.stop}
+                    onPause={s.pause}
+                    onResume={s.resume}
+                    onCustomMinutes={(sc) => setCustomFor(sc.id)}
                     onReset={resetScooter}
                     onEdit={(sc) => setEditingId(sc.id)}
                   />
@@ -156,6 +174,7 @@ export default function ScootersScreen() {
         )}
       />
 
+      <CustomMinutesSheet scooter={customScooter} onClose={() => setCustomFor(null)} onAdd={s.allocate} />
       <ScooterEditSheet
         scooter={editing}
         onClose={() => setEditingId(null)}

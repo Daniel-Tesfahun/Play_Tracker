@@ -9,7 +9,15 @@ const MIN = 60_000;
 const START = new Date(2026, 9, 10, 14, 5).getTime();
 const H24: ClockPrefs = { locale: 'en-GB', hour12: false };
 
-const idle: Scooter = { id: 7, name: 'Scooter 7', startedAt: null, allocatedMinutes: 0, position: 1 };
+const idle: Scooter = {
+  id: 7,
+  name: 'Scooter 7',
+  startedAt: null,
+  allocatedMinutes: 0,
+  pausedAt: null,
+  pausedMs: 0,
+  position: 1,
+};
 
 async function renderCard(
   scooter: Scooter,
@@ -22,6 +30,9 @@ async function renderCard(
     onClearAllocation: jest.fn(),
     onStart: jest.fn(),
     onStop: jest.fn(),
+    onPause: jest.fn(),
+    onResume: jest.fn(),
+    onCustomMinutes: jest.fn(),
     onReset: jest.fn(),
     onEdit: jest.fn(),
   };
@@ -128,5 +139,46 @@ describe('ScooterCard', () => {
     const props = await renderCard(idle, START, H24, { collapsed: true, onToggleCollapse: jest.fn() });
     await fireEvent.press(screen.getByTestId('scooter-start-7'));
     expect(props.onStart).toHaveBeenCalledWith(7);
+  });
+
+  it('pauses a running ride', async () => {
+    const props = await renderCard({ ...idle, startedAt: START, allocatedMinutes: 30 }, START + 5 * MIN);
+    await fireEvent.press(screen.getByTestId('scooter-pause-7'));
+    expect(props.onPause).toHaveBeenCalledWith(7);
+    expect(screen.queryByTestId('scooter-resume-7')).toBeNull();
+  });
+
+  it('shows a paused ride frozen, with Resume', async () => {
+    const paused = { ...idle, startedAt: START, allocatedMinutes: 30, pausedAt: START + 10 * MIN };
+    const props = await renderCard(paused, START + 40 * MIN);
+    expect(screen.getByTestId('scooter-badge-7')).toHaveTextContent('Paused');
+    // Frozen at the 10-minute mark: 20 minutes still left, not overtime.
+    expect(screen.getByTestId('scooter-time-7')).toHaveTextContent('20:00');
+    expect(screen.getByTestId('scooter-caption-7')).toHaveTextContent(/Paused at 14:15/);
+    expect(screen.getByText('On hold')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByTestId('scooter-resume-7'));
+    expect(props.onResume).toHaveBeenCalledWith(7);
+  });
+
+  it('pushes the end time back by the time spent paused', async () => {
+    await renderCard({ ...idle, startedAt: START, allocatedMinutes: 30, pausedMs: 10 * MIN }, START + 20 * MIN);
+    // 14:05 start + 30 min ride + 10 min paused.
+    expect(screen.getByText('Ends 14:45')).toBeOnTheScreen();
+  });
+
+  it('opens the custom minutes sheet from the keypad bubble', async () => {
+    const props = await renderCard(idle, START);
+    await fireEvent.press(screen.getByTestId('preset-custom-7'));
+    expect(props.onCustomMinutes).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
+  });
+
+  it('offers pause in the collapsed row too', async () => {
+    const props = await renderCard({ ...idle, startedAt: START }, START + MIN, H24, {
+      collapsed: true,
+      onToggleCollapse: jest.fn(),
+    });
+    await fireEvent.press(screen.getByTestId('scooter-pause-7'));
+    expect(props.onPause).toHaveBeenCalledWith(7);
   });
 });

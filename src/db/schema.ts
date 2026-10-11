@@ -1,7 +1,7 @@
 import type { Database } from './types';
 
 export const DATABASE_NAME = 'playtracker.db';
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const DEFAULT_ZONE_COUNT = 6;
 export const DEFAULT_SCOOTER_COUNT = 4;
@@ -28,6 +28,10 @@ export async function migrate(db: Database): Promise<void> {
   if (version < 3) {
     await renameDefaultZones(db);
     version = 3;
+  }
+  if (version < 4) {
+    await addRidePause(db);
+    version = 4;
   }
 
   await db.execAsync(`PRAGMA user_version = ${version}`);
@@ -115,5 +119,14 @@ async function renameDefaultZones(db: Database): Promise<void> {
   await db.execAsync(`
     UPDATE zones SET name = 'Station ' || substr(name, 6)
      WHERE name GLOB 'Zone [0-9]*' AND substr(name, 6) NOT GLOB '*[^0-9]*';
+  `);
+}
+
+/** v4: rides can be paused; paused time is excluded from ride time and billing. */
+async function addRidePause(db: Database): Promise<void> {
+  await db.execAsync(`
+    ALTER TABLE scooters ADD COLUMN paused_at INTEGER;
+    ALTER TABLE scooters ADD COLUMN paused_ms INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE scooter_sessions ADD COLUMN paused_ms INTEGER NOT NULL DEFAULT 0;
   `);
 }

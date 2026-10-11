@@ -1,21 +1,20 @@
-import { addAllocation, billableMinutes } from '@/lib/timer';
+import { activeElapsedMs, addAllocation, billableMinutes } from '@/lib/timer';
 import { dayKey } from '@/lib/time';
 
 import type { Database, Scooter, ScooterDayStats } from './types';
 
+const SCOOTER_COLUMNS = `id, name, started_at AS startedAt, allocated_minutes AS allocatedMinutes,
+  paused_at AS pausedAt, paused_ms AS pausedMs, position`;
+
+/** Back to idle: no ride, no booking, no pause. */
+const IDLE_SET = 'started_at = NULL, allocated_minutes = 0, paused_at = NULL, paused_ms = 0';
+
 export async function listScooters(db: Database): Promise<Scooter[]> {
-  return db.getAllAsync<Scooter>(
-    `SELECT id, name, started_at AS startedAt, allocated_minutes AS allocatedMinutes, position
-       FROM scooters ORDER BY position, id`,
-  );
+  return db.getAllAsync<Scooter>(`SELECT ${SCOOTER_COLUMNS} FROM scooters ORDER BY position, id`);
 }
 
 async function getScooter(db: Database, scooterId: number): Promise<Scooter | null> {
-  return db.getFirstAsync<Scooter>(
-    `SELECT id, name, started_at AS startedAt, allocated_minutes AS allocatedMinutes, position
-       FROM scooters WHERE id = ?`,
-    scooterId,
-  );
+  return db.getFirstAsync<Scooter>(`SELECT ${SCOOTER_COLUMNS} FROM scooters WHERE id = ?`, scooterId);
 }
 
 export async function addScooter(db: Database, name: string): Promise<number> {
@@ -41,7 +40,7 @@ export async function deleteScooter(db: Database, scooterId: number): Promise<vo
   });
 }
 
-/** Adds preset minutes to a scooter, whether idle (pre-allocating) or mid-ride (extending). */
+/** Adds minutes (preset or custom) to a scooter, whether idle (booking) or mid-ride (extending). */
 export async function allocateMinutes(
   db: Database,
   scooterId: number,
@@ -61,15 +60,35 @@ export async function clearAllocation(db: Database, scooterId: number): Promise<
 /** Starts a ride stamped with the current time. Starting a running scooter keeps its original start. */
 export async function startSession(db: Database, scooterId: number, now = Date.now()): Promise<void> {
   await db.runAsync(
-    'UPDATE scooters SET started_at = COALESCE(started_at, ?) WHERE id = ?',
+    `UPDATE scooters SET started_at = ?, paused_at = NULL, paused_ms = 0
+      WHERE id = ? AND started_at IS NULL`,
+    now,
+    scooterId,
+  );
+}
+
+/** Freezes a running ride's clock. No-op if idle or already paused. */
+export async function pauseSession(db: Database, scooterId: number, now = Date.now()): Promise<void> {
+  await db.runAsync(
+    'UPDATE scooters SET paused_at = ? WHERE id = ? AND started_at IS NOT NULL AND paused_at IS NULL',
+    now,
+    scooterId,
+  );
+}
+
+/** Restarts a paused ride's clock, banking the time spent paused. No-op if not paused. */
+export async function resumeSession(db: Database, scooterId: number, now = Date.now()): Promise<void> {
+  await db.runAsync(
+    `UPDATE scooters SET paused_ms = paused_ms + MAX(0, ? - paused_at), paused_at = NULL
+      WHERE id = ? AND paused_at IS NOT NULL`,
     now,
     scooterId,
   );
 }
 
 /**
- * Ends the ride, writes it to history, and returns the scooter to idle with no allocation.
- * Returns the billable minutes, or null if the scooter wasn't running.
+ * Ends the ride (even mid-pause), writes it to history, and returns the scooter to idle.
+ * Returns the billable minutes, which exclude paused time, or null if it wasn't running.
  */
 export async function stopSession(
   db: Database,
@@ -79,49 +98,48 @@ export async function stopSession(
   const scooter = await getScooter(db, scooterId);
   if (!scooter || scooter.startedAt === null) return null;
   const startedAt = scooter.startedAt;
+  const pause = { pausedAt: scooter.pausedAt, pausedMs: scooter.pausedMs };
+  const ridden = activeElapsedMs(startedAt, now, pause);
+  const totalPausedMs = Math.max(0, now - startedAt - ridden);
 
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `INSERT INTO scooter_sessions (scooter_id, day, started_at, ended_at, allocated_minutes)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO scooter_sessions (scooter_id, day, started_at, ended_at, allocated_minutes, paused_ms)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       scooterId,
       dayKey(startedAt),
       startedAt,
       now,
       scooter.allocatedMinutes,
+      totalPausedMs,
     );
-    await db.runAsync(
-      'UPDATE scooters SET started_at = NULL, allocated_minutes = 0 WHERE id = ?',
-      scooterId,
-    );
+    await db.runAsync(`UPDATE scooters SET ${IDLE_SET} WHERE id = ?`, scooterId);
   });
 
-  return billableMinutes(now - startedAt);
+  return billableMinutes(ridden);
 }
 
 /** Cancels a ride (or booking) without logging it, returning the scooter to idle. */
 export async function resetScooter(db: Database, scooterId: number): Promise<void> {
-  await db.runAsync(
-    'UPDATE scooters SET started_at = NULL, allocated_minutes = 0 WHERE id = ?',
-    scooterId,
-  );
+  await db.runAsync(`UPDATE scooters SET ${IDLE_SET} WHERE id = ?`, scooterId);
 }
 
 /** Cancels every ride and booking and clears today's ride history. Earlier days are kept. */
 export async function resetScootersDay(db: Database, now = Date.now()): Promise<void> {
   await db.withTransactionAsync(async () => {
-    await db.runAsync('UPDATE scooters SET started_at = NULL, allocated_minutes = 0');
+    await db.runAsync(`UPDATE scooters SET ${IDLE_SET}`);
     await db.runAsync('DELETE FROM scooter_sessions WHERE day = ?', dayKey(now));
   });
 }
 
 export async function getScooterDayStats(db: Database, day = dayKey()): Promise<ScooterDayStats> {
-  const rows = await db.getAllAsync<{ startedAt: number; endedAt: number }>(
-    'SELECT started_at AS startedAt, ended_at AS endedAt FROM scooter_sessions WHERE day = ?',
+  const rows = await db.getAllAsync<{ startedAt: number; endedAt: number; pausedMs: number }>(
+    `SELECT started_at AS startedAt, ended_at AS endedAt, paused_ms AS pausedMs
+       FROM scooter_sessions WHERE day = ?`,
     day,
   );
   return {
     sessionsToday: rows.length,
-    minutesToday: rows.reduce((sum, r) => sum + billableMinutes(r.endedAt - r.startedAt), 0),
+    minutesToday: rows.reduce((sum, r) => sum + billableMinutes(r.endedAt - r.startedAt - r.pausedMs), 0),
   };
 }

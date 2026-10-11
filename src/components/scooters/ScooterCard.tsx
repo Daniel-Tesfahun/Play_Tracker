@@ -10,7 +10,7 @@ import { computeTimerState, type TimerPhase } from '@/lib/timer';
 import { formatClock, formatDuration, formatMinutes, type ClockPrefs } from '@/lib/time';
 import { usePalette } from '@/theme/usePalette';
 
-import { phaseStyle } from './phaseStyle';
+import { pausedStyle, phaseStyle } from './phaseStyle';
 import { PresetBubbles } from './PresetBubbles';
 import { TimerProgress } from './TimerProgress';
 
@@ -27,6 +27,10 @@ interface ScooterCardProps {
   onClearAllocation: (id: number) => void;
   onStart: (id: number) => void;
   onStop: (id: number) => void;
+  onPause: (id: number) => void;
+  onResume: (id: number) => void;
+  /** Opens the custom-minutes sheet for this scooter. */
+  onCustomMinutes: (scooter: Scooter) => void;
   onReset: (scooter: Scooter) => void;
   onEdit: (scooter: Scooter) => void;
 }
@@ -46,6 +50,9 @@ function headline(phase: TimerPhase, remainingMs: number | null, elapsedMs: numb
 }
 
 function caption(scooter: Scooter, phase: TimerPhase, elapsedMs: number, clock: ClockPrefs) {
+  if (scooter.pausedAt !== null) {
+    return `Paused at ${formatClock(scooter.pausedAt, clock)} · clock stopped, tap Resume`;
+  }
   if (phase === 'idle') {
     return scooter.allocatedMinutes > 0
       ? `${formatMinutes(scooter.allocatedMinutes)} booked · tap Start when they ride off`
@@ -67,42 +74,82 @@ function ScooterCardBase({
   onClearAllocation,
   onStart,
   onStop,
+  onPause,
+  onResume,
+  onCustomMinutes,
   onReset,
   onEdit,
 }: ScooterCardProps) {
   const c = usePalette();
-  const timer = computeTimerState(scooter.startedAt, scooter.allocatedMinutes, now);
-  const style = phaseStyle[timer.phase];
+  const timer = computeTimerState(scooter.startedAt, scooter.allocatedMinutes, now, {
+    pausedAt: scooter.pausedAt,
+    pausedMs: scooter.pausedMs,
+  });
+  const paused = timer.paused;
+  const style = paused ? pausedStyle : phaseStyle[timer.phase];
   const color = c[style.color];
   const running = scooter.startedAt !== null;
   const dirty = running || scooter.allocatedMinutes > 0;
   const idleAndEmpty = timer.phase === 'idle' && scooter.allocatedMinutes === 0;
   // Running: full-strength timer. Booked: dimmer countdown preview. Empty: a quiet "Ready".
-  const headlineClass = running ? 'text-6xl text-ink' : idleAndEmpty ? 'text-4xl text-faint' : 'text-6xl text-muted';
+  const headlineClass = running
+    ? 'text-6xl text-ink'
+    : idleAndEmpty
+      ? 'text-4xl text-faint'
+      : 'text-6xl text-muted';
 
   // Buzz once when a ride crosses into "ending soon" or overtime.
   const lastPhase = useRef(timer.phase);
   useEffect(() => {
     const prev = lastPhase.current;
     lastPhase.current = timer.phase;
-    if (prev === timer.phase || !running) return;
+    if (prev === timer.phase || !running || paused) return;
     if (timer.phase === 'warning') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     if (timer.phase === 'expired') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-  }, [timer.phase, running]);
+  }, [timer.phase, running, paused]);
 
+  // Paused time pushes the end back, so it's added in; while paused there is no end time yet.
   const endsAt =
     running && scooter.allocatedMinutes > 0
-      ? `${timer.phase === 'expired' ? 'Ended' : 'Ends'} ${formatClock(
-          (scooter.startedAt ?? 0) + scooter.allocatedMinutes * MINUTE,
-          clock,
-        )}`
+      ? paused
+        ? 'On hold'
+        : `${timer.phase === 'expired' ? 'Ended' : 'Ends'} ${formatClock(
+            (scooter.startedAt ?? 0) + scooter.pausedMs + scooter.allocatedMinutes * MINUTE,
+            clock,
+          )}`
       : undefined;
+
+  const pauseButton = (size: 'md' | 'lg') =>
+    paused ? (
+      <IconButton
+        icon="play"
+        label={`Resume ride on ${scooter.name}`}
+        variant="filled"
+        size={size}
+        color={c.neon}
+        onPress={() => onResume(scooter.id)}
+        testID={`scooter-resume-${scooter.id}`}
+      />
+    ) : (
+      <IconButton
+        icon="pause"
+        label={`Pause ride on ${scooter.name}`}
+        variant="filled"
+        size={size}
+        color={c.ink}
+        onPress={() => onPause(scooter.id)}
+        testID={`scooter-pause-${scooter.id}`}
+      />
+    );
 
   const timeText = (
     <Text
       testID={`scooter-time-${scooter.id}`}
       className={collapsed ? `text-2xl font-extrabold ${running ? 'text-ink' : 'text-faint'}` : `mt-3 font-extrabold ${headlineClass}`}
-      style={{ fontVariant: ['tabular-nums'], color: timer.phase === 'expired' ? color : undefined }}
+      style={{
+        fontVariant: ['tabular-nums'],
+        color: paused ? c.muted : timer.phase === 'expired' ? color : undefined,
+      }}
     >
       {headline(timer.phase, timer.remainingMs, timer.elapsedMs, timer.overtimeMs)}
     </Text>
@@ -136,6 +183,7 @@ function ScooterCardBase({
           {collapsed ? (
             <>
               {timeText}
+              {running ? pauseButton('md') : null}
               {running ? (
                 <IconButton
                   icon="stop"
@@ -199,6 +247,7 @@ function ScooterCardBase({
                 allocatedMinutes={scooter.allocatedMinutes}
                 onAdd={(m) => onAllocate(scooter.id, m)}
                 onClear={() => onClearAllocation(scooter.id)}
+                onCustom={() => onCustomMinutes(scooter)}
                 canClear={!running}
               />
             </View>
@@ -223,6 +272,7 @@ function ScooterCardBase({
                   className="flex-1"
                 />
               )}
+              {running ? pauseButton('lg') : null}
               <IconButton
                 icon="refresh"
                 label={running ? `Cancel ride on ${scooter.name} without saving` : `Reset ${scooter.name}`}

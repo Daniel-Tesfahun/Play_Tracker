@@ -1,4 +1,4 @@
-import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { notifyManager, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
@@ -6,6 +6,9 @@ import { createQueryClient } from '../queryClient';
 import { patchQuery, useOptimisticMutation } from '../useOptimisticMutation';
 
 const KEY = ['counter'];
+
+// TanStack batches renders on a timer by default; microtasks let act() flush them.
+notifyManager.setScheduler(queueMicrotask);
 
 // Finished mutations linger for gcTime (5 min by default), which would keep Jest alive.
 const clients: ReturnType<typeof createQueryClient>[] = [];

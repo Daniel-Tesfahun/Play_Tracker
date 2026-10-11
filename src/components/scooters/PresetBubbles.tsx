@@ -11,11 +11,13 @@ interface PresetBubblesProps {
   allocatedMinutes: number;
   onAdd: (minutes: number) => void;
   onClear: () => void;
+  /** Opens the sheet for typing any number of minutes. */
+  onCustom: () => void;
   /** Clearing mid-ride would silently turn a booking into open-ended time, so it's hidden then. */
   canClear: boolean;
 }
 
-export function PresetBubbles({ scooterId, allocatedMinutes, onAdd, onClear, canClear }: PresetBubblesProps) {
+export function PresetBubbles({ scooterId, allocatedMinutes, onAdd, onClear, onCustom, canClear }: PresetBubblesProps) {
   const c = usePalette();
   return (
     <View className="flex-row items-center gap-2">
@@ -33,6 +35,16 @@ export function PresetBubbles({ scooterId, allocatedMinutes, onAdd, onClear, can
           <Text className="text-sm font-bold text-scoot">+{formatMinutes(m)}</Text>
         </PressableScale>
       ))}
+      <PressableScale
+        onPress={onCustom}
+        accessibilityRole="button"
+        accessibilityLabel="Add a custom number of minutes"
+        testID={`preset-custom-${scooterId}`}
+        pressedScale={0.9}
+        className="h-11 w-14 items-center justify-center rounded-full border border-dashed border-scoot/50 bg-scootDim"
+      >
+        <Ionicons name="keypad-outline" size={18} color={c.scoot} />
+      </PressableScale>
       {allocatedMinutes > 0 && canClear ? (
         <PressableScale
           onPress={onClear}

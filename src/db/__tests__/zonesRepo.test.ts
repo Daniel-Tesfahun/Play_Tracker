@@ -79,6 +79,9 @@ describe('migrate', () => {
     // v3 renamed the untouched default name, but left custom names alone.
     expect((await listZones(old, dayKey(TODAY))).map((z) => z.name)).toEqual(['Station 1', 'VIP Zone', 'Zone 12b']);
 
+    const scooterCols = await old.getAllAsync<{ name: string }>('PRAGMA table_info(scooters)');
+    expect(scooterCols.map((c) => c.name)).toEqual(expect.arrayContaining(['paused_at', 'paused_ms']));
+
     const playerId = await addPlayer(old, 1, 'Abel', TODAY);
     await incrementZone(old, 1, TODAY + 1, playerId);
     expect((await listZones(old, dayKey(TODAY)))[0]?.players[0]?.gamesToday).toBe(1);

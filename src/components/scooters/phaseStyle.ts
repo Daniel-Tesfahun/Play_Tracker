@@ -54,3 +54,13 @@ export const phaseStyle: Record<TimerPhase, PhaseStyle> = {
     badgeText: 'text-danger',
   },
 };
+
+/** Overrides the phase look while a ride is on hold, whatever its phase. */
+export const pausedStyle: PhaseStyle = {
+  label: 'Paused',
+  color: 'muted',
+  border: 'border-lineStrong border-dashed',
+  strip: 'bg-muted',
+  badge: 'bg-elevated',
+  badgeText: 'text-ink',
+};

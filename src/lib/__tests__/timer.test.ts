@@ -1,8 +1,10 @@
 import {
+  activeElapsedMs,
   addAllocation,
   billableMinutes,
   computeTimerState,
   MAX_ALLOCATED_MINUTES,
+  parseCustomMinutes,
   warningThresholdMs,
 } from '../timer';
 
@@ -100,5 +102,59 @@ describe('billableMinutes', () => {
     expect(billableMinutes(1)).toBe(1);
     expect(billableMinutes(60_000)).toBe(1);
     expect(billableMinutes(61_000)).toBe(2);
+  });
+});
+
+describe('pausing', () => {
+  it('freezes the clock while paused', () => {
+    const pause = { pausedAt: START + 10 * MIN, pausedMs: 0 };
+    const atPause = computeTimerState(START, 30, START + 10 * MIN, pause);
+    const later = computeTimerState(START, 30, START + 25 * MIN, pause);
+    expect(later.paused).toBe(true);
+    expect(later.elapsedMs).toBe(10 * MIN);
+    expect(later.remainingMs).toBe(atPause.remainingMs);
+  });
+
+  it('excludes finished pauses after resuming', () => {
+    // Rode 10 min, paused 5 min, now 4 more minutes of riding.
+    const state = computeTimerState(START, 30, START + 19 * MIN, { pausedAt: null, pausedMs: 5 * MIN });
+    expect(state.paused).toBe(false);
+    expect(state.elapsedMs).toBe(14 * MIN);
+    expect(state.remainingMs).toBe(16 * MIN);
+  });
+
+  it('cannot slip into overtime while paused', () => {
+    const pause = { pausedAt: START + 14 * MIN, pausedMs: 0 };
+    expect(computeTimerState(START, 15, START + 60 * MIN, pause).phase).toBe('warning');
+  });
+
+  it('works for open-ended rides too', () => {
+    const state = computeTimerState(START, 0, START + 20 * MIN, { pausedAt: START + 8 * MIN, pausedMs: 2 * MIN });
+    expect(state.phase).toBe('open');
+    expect(state.elapsedMs).toBe(6 * MIN);
+    expect(state.paused).toBe(true);
+  });
+
+  it('idle scooters are never paused', () => {
+    expect(computeTimerState(null, 30, START).paused).toBe(false);
+  });
+
+  it('activeElapsedMs never goes negative', () => {
+    expect(activeElapsedMs(START, START - MIN)).toBe(0);
+    expect(activeElapsedMs(START, START + MIN, { pausedAt: null, pausedMs: 5 * MIN })).toBe(0);
+  });
+});
+
+describe('parseCustomMinutes', () => {
+  it('accepts whole minutes in range', () => {
+    expect(parseCustomMinutes('25')).toBe(25);
+    expect(parseCustomMinutes(' 90 ')).toBe(90);
+    expect(parseCustomMinutes(String(MAX_ALLOCATED_MINUTES))).toBe(MAX_ALLOCATED_MINUTES);
+  });
+
+  it('rejects empty, zero, decimals, negatives, and too much', () => {
+    for (const bad of ['', '0', '1.5', '-5', 'abc', '15m', String(MAX_ALLOCATED_MINUTES + 1)]) {
+      expect(parseCustomMinutes(bad)).toBeNull();
+    }
   });
 });
