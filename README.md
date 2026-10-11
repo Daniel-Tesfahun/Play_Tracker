@@ -42,7 +42,15 @@ npx eas-cli@latest login
 npx eas-cli@latest build --platform android --profile preview   # installable .apk
 ```
 
-Profiles live in `eas.json`: `preview` builds an APK for direct install, `production` builds an AAB for the Play Store.
+Two apps from one project (`app.config.js` switches on `APP_VARIANT`), so both can be installed at once:
+
+| Profile | App | Android id | Use |
+| --- | --- | --- | --- |
+| `development` | PlayTracker Dev (slate/amber icon) | `com.flotitan.playtracker.dev` | Connects to `npx expo start`; changes show instantly |
+| `preview` | PlayTracker (violet/cyan icon) | `com.flotitan.playtracker` | Standalone APK, full speed |
+| `production` | PlayTracker | `com.flotitan.playtracker` | Play Store AAB |
+
+`npx expo start` serves the dev app by default. Rebuild the development app only when a native library is added.
 
 ## Project structure
 
