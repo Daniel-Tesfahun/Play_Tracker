@@ -11,8 +11,8 @@ import { usePalette } from '@/theme/usePalette';
  * the card's edge was (so it lines up with the cards above and below) and keeps
  * PANEL_GAP to the slid-away card.
  */
-const PANEL_WIDTH = 76;
-const PANEL_GAP = 10;
+const PANEL_WIDTH = 60;
+const PANEL_GAP = 8;
 /** How far the card slides to show an action, and how far you must drag to snap it open. */
 export const OPEN_WIDTH = PANEL_WIDTH + PANEL_GAP;
 export const OPEN_THRESHOLD = Math.round(OPEN_WIDTH / 2);
@@ -213,7 +213,7 @@ export function SwipeRow({ children, left, right, enabled = true, testID }: Swip
             }}
           >
             <Animated.View style={{ alignItems: 'center', opacity: contentOpacity, transform: [{ scale: iconScale }] }}>
-              <Ionicons name={action.icon} size={22} color={c[t.ink]} />
+              <Ionicons name={action.icon} size={20} color={c[t.ink]} />
               <Text className="mt-1 text-[11px] font-bold" style={{ color: c[t.ink] }} numberOfLines={1}>
                 {action.label}
               </Text>

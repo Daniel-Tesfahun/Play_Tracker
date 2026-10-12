@@ -88,6 +88,9 @@ function ScooterCardBase({
   const idleAndEmpty = timer.phase === 'idle' && scooter.allocatedMinutes === 0;
   // Running: full-strength timer. Booked: dimmer countdown preview. Empty: a quiet "Ready".
   const headlineClass = running ? 'text-6xl text-ink' : idleAndEmpty ? 'text-4xl text-muted' : 'text-6xl text-muted';
+  // Explicit line heights (~1.2× the size) so Plus Jakarta's descenders, like the "y" in
+  // "Ready", are never clipped on Android. Mirrors the fontSize scale in tailwind.config.js.
+  const headlineLineHeight = collapsed ? 26 : idleAndEmpty ? 44 : 72;
 
   // Buzz once when a ride crosses into "ending soon" or overtime.
   const lastPhase = useRef(timer.phase);
@@ -146,7 +149,7 @@ function ScooterCardBase({
       }
       // Only set `color` when overriding: a `color: undefined` key would wipe the class color (→ black).
       style={[
-        { fontVariant: ['tabular-nums'] },
+        { fontVariant: ['tabular-nums'], lineHeight: headlineLineHeight },
         paused ? { color: c.muted } : timer.phase === 'expired' ? { color } : null,
       ]}
     >

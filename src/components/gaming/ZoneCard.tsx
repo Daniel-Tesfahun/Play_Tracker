@@ -182,7 +182,7 @@ function ZoneCardBase({
                   className={`text-6xl font-extrabold ${played ? 'text-ink' : 'text-faint'}`}
                   containerStyle={{ alignSelf: 'flex-start' }}
                 />
-                <Text className="-mt-1 text-xs font-semibold uppercase tracking-wider text-faint">games today</Text>
+                <Text className="-mt-2 text-xs font-semibold uppercase tracking-wider text-faint">games today</Text>
               </View>
               <View className="flex-row items-center gap-2">
                 <IconButton
